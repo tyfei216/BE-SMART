@@ -56,7 +56,7 @@ or
 
 ```powershell
 
-python test.py -model p[path-to-saved-model] -ds [path-to-dataset]
+python test.py -model [path-to-saved-model] -ds [path-to-dataset]
 
 ```
 
