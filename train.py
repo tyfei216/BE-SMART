@@ -27,6 +27,8 @@ def Args():
     parser.add_argument("-dropout", type=float, default=0.3, help="dropout rates")
     parser.add_argument("-baseIndex", type=int, default=2, help="which base to predict (T:1, G:2)")
     args = parser.parse_args()
+    if not os.path.exists(args.log):
+        os.makedirs(args.log)
     logname = log.init_logs(args.log) 
     if args.evalpositions == None:
         args.evalpositions = [3,4,5,6,7]
