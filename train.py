@@ -8,6 +8,7 @@ import os
 import pickle
 import time
 import torch.nn as nn
+import numpy as np
 
 device = None
 
@@ -69,7 +70,8 @@ def GetDataset(path):
     log.info("reading dataset " + path)
     with open(path, "rb") as f:
         data = pickle.load(f)
-    ds = dataset.BaseEditingDataset(data['mapping'], data['seq'], editBase = 3, rawSequence=False)
+    indel = np.array(data['indel'], dtype=np.float)/np.array(data['cnts'], dtype=np.float)
+    ds = dataset.BaseEditingDataset(data['mapping'], data['seq'], indel, editBase = 3, rawSequence=False)
     dsTrain, dsValid, dsTest = dataset.SplitDataset(ds)
     log.info("finish dataset construction")
     return dsTrain, dsValid, dsTest
@@ -94,10 +96,26 @@ def main():
     for i in range(args.epoch):
         totalLoss = functions.trainonce(model, dsTrain, optim, cri, device, args.baseIndex)
         log.info("epoch " + str(i)+": Total Loss: "+str(totalLoss))
-        log.info("testing on validation set")
-        pre, tru = functions.test(model, dsValid, args.baseIndex)
+
+        pre, tru, indelpre, indeltruth = functions.test(model, dsTrain, args.baseIndex)
         res1, res2 = functions.eval(pre, tru, args.evalpositions)
+        indelpearson = functions.CalculatePearson(indelpre, indeltruth)
+        log.info("results on training set")
+        pre, tru, indelpre, indeltruth = functions.test(model, dsTrain, args.baseIndex)
+        res1, res2 = functions.eval(pre, tru, args.evalpositions)
+        indelpearson = functions.CalculatePearson(indelpre, indeltruth)
+        log.info("training results: pearson "+str(res1)+" RMSE "+str(res2))
+        log.info("training indel results "+str(indelpearson))
+
+        log.info("testing on validation set")
+        pre, tru, indelpre, indeltruth = functions.test(model, dsValid, args.baseIndex)
+        res1, res2 = functions.eval(pre, tru, args.evalpositions)
+        indelpearson = functions.CalculatePearson(indelpre, indeltruth)
+
+
+
         log.info("validation results: pearson "+str(res1)+" RMSE "+str(res2))
+        log.info("validation indel results "+str(indelpearson))
         if res1 > bestval:
             bestval = res1 
             bestepoch = i

@@ -7,7 +7,7 @@ import torch
 mapping = {'A':0,'T':1,'G':2,'C':3}
 
 class BaseEditingDataset(Dataset):
-    def __init__(self, data, sequence, editBase = 'C', rawSequence = True):
+    def __init__(self, data, sequence, indel, editBase = 'C', rawSequence = True):
 
         super(BaseEditingDataset, self).__init__()
         data = torch.tensor(data).float()
@@ -28,6 +28,8 @@ class BaseEditingDataset(Dataset):
         else:
             sequences = sequence
 
+        self.indel = indel
+
         self.sequence = np.array(sequences).astype(np.int)
         
         #log.debug("labeling editing position")
@@ -45,8 +47,9 @@ class BaseEditingDataset(Dataset):
         seq = self.sequence[index]
         cpos = self.Cpos[index]
         data = self.data[index]
+        indel = self.indel[index]
 
-        return seq, cpos, data
+        return seq, cpos, data, indel
 
 def SplitDataset(ds:BaseEditingDataset, sizes=None):
     

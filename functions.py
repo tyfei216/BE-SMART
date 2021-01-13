@@ -10,47 +10,56 @@ def test(model, dsTest, baseIndex):
     predict = []
     truth = []
 
+    indelpredict = []
+    indeltruth = []
+
     for _ in range(20):
         predict.append([]) 
         truth.append([])
 
     model = model.eval().cpu()
-    for _, j in enumerate(dsTest):
-        seq, mask, target = j 
-        seq = seq.long() 
-        mask = mask.float()
-        target = target.float()
-        out = model(seq.long())
+    with torch.no_grad():
+        for _, j in enumerate(dsTest):
+            seq, mask, target, indel = j 
+            seq = seq.long() 
+            mask = mask.float()
+            target = target.float()
+            indel = indel.float()
+            out, indelpre = model(seq.long())
 
-        target = target.detach().numpy()
-        out = out.detach().numpy()
+            target = target.numpy()
+            out = out.numpy()
+            indelpre = indelpre.numpy()
 
-        for l in range(target.shape[0]):
-            for m in range(20):
-                if mask[l][m+10] > 0.5:
-                    #print("here")
-                    predict[m].append(out[l][m])
-                    truth[m].append(target[l][m+10][baseIndex])
-                    #total.append(out[l][m])
-                    #totalres.append(target[l][m+10][base])
+            for l in range(target.shape[0]):
+                indelpredict.append(indelpre[l])
+                indeltruth.append(indel[l])
+                for m in range(20):
+                    if mask[l][m+10] > 0.5:
+                        #print("here")
+                        predict[m].append(out[l][m])
+                        truth[m].append(target[l][m+10][baseIndex])
+                        #total.append(out[l][m])
+                        #totalres.append(target[l][m+10][base])
 
-    return (predict, truth)
+    return predict, truth, indelpredict, indeltruth
 
 def trainonce(model, ds, optimizer, criterion, device, baseIndex):
     
     model = model.train().to(device)
     totalloss = 0.0
     for _, j in enumerate(ds):
-        seq, mask, target = j 
+        seq, mask, target, indel = j 
         seq = seq.long().to(device)
         mask = mask.float().to(device)
         target = target.float().to(device)
+        indel = indel.float().to(device)
         
-        out = model(seq)  
+        out, indelpredict = model(seq)  
         loss = (out*100 - target[:, 10:30, baseIndex]*100) 
         loss = loss * mask[:, 10:30]
         
-        lossr = criterion(loss, torch.zeros_like(loss))
+        lossr = criterion(loss, torch.zeros_like(loss)) + criterion(indelpredict, indel)
         totalloss += lossr.item()
 
         optimizer.zero_grad() 
@@ -70,6 +79,11 @@ def eval(pre1, real1, positions):
     res1 = np.corrcoef(np.asarray(pre), np.asarray(real))[0, 1]
     res2 = sqrt(mean_squared_error(pre, real))
     return (res1, res2)
+
+def CalculatePearson(pre, real):
+
+    ret = np.corrcoef(np.asarray(pre), np.asarray(real))[0, 1]
+    return ret
 
 def CalculateAllResults(model, dsTest, baseIndex, savepath, positions):
     predict = []
@@ -91,11 +105,13 @@ def CalculateAllResults(model, dsTest, baseIndex, savepath, positions):
 
     model = model.eval().cpu()
     for _, j in enumerate(dsTest):
-        seq, mask, target = j 
+        seq, mask, target, indel = j 
         seq = seq.long() 
         mask = mask.float()
         target = target.float()
-        out = model(seq.long())
+        indel = indel.float()
+        out, _ = model(seq.long())
+
 
         seq = seq.detach().numpy()
         target = target.detach().numpy()
