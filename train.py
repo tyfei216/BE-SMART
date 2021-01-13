@@ -97,18 +97,18 @@ def main():
         totalLoss = functions.trainonce(model, dsTrain, optim, cri, device, args.baseIndex)
         log.info("epoch " + str(i)+": Total Loss: "+str(totalLoss))
 
-        pre, tru, indelpre, indeltruth = functions.test(model, dsTrain, args.baseIndex)
+        pre, tru, indelpre, indeltruth = functions.test(model, dsTrain, args.baseIndex, device)
         res1, res2 = functions.eval(pre, tru, args.evalpositions)
         indelpearson = functions.CalculatePearson(indelpre, indeltruth)
         log.info("results on training set")
-        pre, tru, indelpre, indeltruth = functions.test(model, dsTrain, args.baseIndex)
+        pre, tru, indelpre, indeltruth = functions.test(model, dsTrain, args.baseIndex, device)
         res1, res2 = functions.eval(pre, tru, args.evalpositions)
         indelpearson = functions.CalculatePearson(indelpre, indeltruth)
         log.info("training results: pearson "+str(res1)+" RMSE "+str(res2))
         log.info("training indel results "+str(indelpearson))
 
         log.info("testing on validation set")
-        pre, tru, indelpre, indeltruth = functions.test(model, dsValid, args.baseIndex)
+        pre, tru, indelpre, indeltruth = functions.test(model, dsValid, args.baseIndex, device)
         res1, res2 = functions.eval(pre, tru, args.evalpositions)
         indelpearson = functions.CalculatePearson(indelpre, indeltruth)
 
@@ -136,7 +136,7 @@ def main():
     log.info("finish loading model, testing and saving results")
     if not os.path.exists(args.result):
         os.makedirs(args.result)
-    res1, res2 = functions.CalculateAllResults(model, dsTest, args.baseIndex, args.result, args.evalpositions)
+    res1, res2 = functions.CalculateAllResults(model, dsTest, args.baseIndex, args.result, args.evalpositions, device)
     log.info("test results: pearson "+str(res1)+" RMSE "+str(res2))
     
     log.info("finshed!")

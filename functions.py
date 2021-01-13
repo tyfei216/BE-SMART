@@ -6,7 +6,9 @@ from sklearn.metrics import mean_squared_error
 from math import sqrt
 import pandas as pd
 
-def test(model, dsTest, baseIndex):
+
+
+def test(model, dsTest, baseIndex, device):
     predict = []
     truth = []
 
@@ -17,19 +19,19 @@ def test(model, dsTest, baseIndex):
         predict.append([]) 
         truth.append([])
 
-    model = model.eval().cpu()
+    model = model.eval().to(device)
     with torch.no_grad():
         for _, j in enumerate(dsTest):
             seq, mask, target, indel = j 
-            seq = seq.long() 
-            mask = mask.float()
-            target = target.float()
-            indel = indel.float()
-            out, indelpre = model(seq.long())
+            seq = seq.long().to(device)
+            mask = mask.float().to(device)
+            target = target.float().to(device)
+            indel = indel.float().to(device)
+            out, indelpre = model(seq)
 
-            target = target.numpy()
-            out = out.numpy()
-            indelpre = indelpre.numpy()
+            target = target.cpu().numpy()
+            out = out.cpu().numpy()
+            indelpre = indelpre.cpu().numpy()
 
             for l in range(target.shape[0]):
                 indelpredict.append(indelpre[l])
@@ -85,7 +87,7 @@ def CalculatePearson(pre, real):
     ret = np.corrcoef(np.asarray(pre), np.asarray(real))[0, 1]
     return ret
 
-def CalculateAllResults(model, dsTest, baseIndex, savepath, positions):
+def CalculateAllResults(model, dsTest, baseIndex, savepath, positions, device):
     predict = []
     truth = []
     mapping = {0:"A", 1:"T", 2:"G", 3:"C"}
@@ -103,33 +105,34 @@ def CalculateAllResults(model, dsTest, baseIndex, savepath, positions):
     
     g.write("\t"+"+".join(map(lambda x: str(x), positions))+"\n")
 
-    model = model.eval().cpu()
-    for _, j in enumerate(dsTest):
-        seq, mask, target, indel = j 
-        seq = seq.long() 
-        mask = mask.float()
-        target = target.float()
-        indel = indel.float()
-        out, _ = model(seq.long())
+    model = model.eval().to(device)
+    with torch.no_grad():
+        for _, j in enumerate(dsTest):
+            seq, mask, target, indel = j 
+            seq = seq.long().to(device)
+            mask = mask.float().to(device)
+            target = target.float().to(device)
+            indel = indel.float().to(device)
+            out, _ = model(seq.long())
 
 
-        seq = seq.detach().numpy()
-        target = target.detach().numpy()
-        out = out.detach().numpy()
+            seq = seq.cpu().numpy()
+            target = target.cpu().numpy()
+            out = out.cpu().numpy()
 
-        for l in range(target.shape[0]):
-            originalSeq = seq[l]
-            originalSeq = "".join(list(map(lambda x: mapping[x], originalSeq)))
+            for l in range(target.shape[0]):
+                originalSeq = seq[l]
+                originalSeq = "".join(list(map(lambda x: mapping[x], originalSeq)))
 
-            for m in range(20):
-                if mask[l][m+10] > 0.5:
-                    predict[m].append(out[l][m])
-                    truth[m].append(target[l][m+10][baseIndex])
-                    f.write(originalSeq+"\t")
-                    f.write(str(m)+"\t")
-                    f.write(str(round(out[l][m], 8))+"\t")
-                    f.write(str(round(target[l][m+10][baseIndex], 8))+"\n")
-    
+                for m in range(20):
+                    if mask[l][m+10] > 0.5:
+                        predict[m].append(out[l][m])
+                        truth[m].append(target[l][m+10][baseIndex])
+                        f.write(originalSeq+"\t")
+                        f.write(str(m)+"\t")
+                        f.write(str(round(out[l][m], 8))+"\t")
+                        f.write(str(round(target[l][m+10][baseIndex], 8))+"\n")
+        
     res1, res2 = eval(predict, truth, positions)
     g.write("RMSE\t")
     for i in range(20):
