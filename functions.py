@@ -6,8 +6,6 @@ from sklearn.metrics import mean_squared_error
 from math import sqrt
 import pandas as pd
 
-
-
 def test(model, dsTest, baseIndex, device):
     predict = []
     truth = []
@@ -61,12 +59,34 @@ def trainonce(model, ds, optimizer, criterion, device, baseIndex):
         loss = (out*100 - target[:, 10:30, baseIndex]*100) 
         loss = loss * mask[:, 10:30]
         
-        lossr = criterion(loss, torch.zeros_like(loss)) + criterion(indelpredict, indel)
+        lossr = criterion(loss, torch.zeros_like(loss)) + criterion(indelpredict*100, indel*100)
         totalloss += lossr.item()
 
-        optimizer.zero_grad() 
+        optimizer.zero_grad()   
         lossr.backward() 
         optimizer.step() 
+
+    return totalloss
+
+def CalculateLoss(model, ds, criterion, device, baseIndex):
+    
+    model = model.train().to(device)
+    totalloss = 0.0
+    
+    with torch.no_grad():
+        for _, j in enumerate(ds):
+            seq, mask, target, indel = j 
+            seq = seq.long().to(device)
+            mask = mask.float().to(device)
+            target = target.float().to(device)
+            indel = indel.float().to(device)
+            
+            out, indelpredict = model(seq)  
+            loss = (out*100 - target[:, 10:30, baseIndex]*100) 
+            loss = loss * mask[:, 10:30]
+            
+            lossr = criterion(loss, torch.zeros_like(loss)) + criterion(indelpredict*100, indel*100)
+            totalloss += lossr.item() 
 
     return totalloss
 
@@ -85,7 +105,8 @@ def eval(pre1, real1, positions):
 def CalculatePearson(pre, real):
 
     ret = np.corrcoef(np.asarray(pre), np.asarray(real))[0, 1]
-    return ret
+    res2 = sqrt(mean_squared_error(pre, real))
+    return ret, res2
 
 def CalculateAllResults(model, dsTest, baseIndex, savepath, positions, device):
     predict = []

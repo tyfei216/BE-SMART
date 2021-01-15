@@ -46,13 +46,15 @@ class BaseModel(nn.Module):
         return res # , inter
 
 class Decoder(nn.Module):
-    def __init__(self, inputDim=1280):
+    def __init__(self, inputDim=1280, dropout=0.3):
         super(Decoder, self).__init__()
-        self.L1 = nn.Linear(inputDim, inputDim//2) 
+        self.L1 = nn.Linear(inputDim, inputDim//2)
+        self.dropout = nn.Dropout(dropout) 
         self.L2 = nn.Linear(inputDim//2, 1)
 
     def forward(self, x):
-        x = F.relu(self.L1(x))
+        x = torch.tanh(self.L1(x))
+        x = self.dropout(x)
         x = torch.sigmoid(self.L2(x))
         return x.squeeze()
 
@@ -119,5 +121,6 @@ class FullModel(nn.Module):
 if __name__ == "__main__":
     a = torch.randint(0, 4, (5, 40))
     b = FullModel(lengthlist=[3,4,5])
+    b.eval()
     c = b(a)
     print(c)

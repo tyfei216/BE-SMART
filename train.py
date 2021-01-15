@@ -20,13 +20,14 @@ def Args():
     parser.add_argument("-checkpoints", type=str, default="./checkpoints/", help="the path to the folder for saving models")
     parser.add_argument("-ds", required=True, type=str, help="path to the dataset")
     parser.add_argument("-savefreq", default=-1, type=int, help="saving the model every ? epoches")
-    parser.add_argument("-epoch", default=300, type=int, help="number of epoches to train")
+    parser.add_argument("-epoch", default=100, type=int, help="number of epoches to train")
     parser.add_argument("-result", default=".\\results\\", type=str, help="path to save the results")
     parser.add_argument("-evalpositions", action="extend", nargs="+", type=int, default=None, help="the position for pearson calculation, intergers[0-20]")
     parser.add_argument("-lr", type=float, default=0.00002, help="learning rate")
     parser.add_argument("-weight_decay", type=float, default=0.0005, help="weight decay of parameters")
     parser.add_argument("-dropout", type=float, default=0.3, help="dropout rates")
     parser.add_argument("-baseIndex", type=int, default=2, help="which base to predict (T:1, G:2)")
+    parser.add_argument("-tensorboard", action="store_true", help="whether to use tensorboard to record training information")
     args = parser.parse_args()
     if not os.path.exists(args.log):
         os.makedirs(args.log)
@@ -51,11 +52,23 @@ def Args():
         exit()
     
     dsname = os.path.basename(args.ds)
-    dirName = args.checkpoints + logname+dsname[:dsname.find(".")]+"\\"
+    dirName = os.path.join(args.checkpoints, logname+dsname[:dsname.find(".")])
     if not os.path.exists(dirName):
         os.makedirs(dirName)
     args.checkpoints = dirName
     log.info("models will be saved under "+dirName)
+
+    if args.tensorboard:
+        dirName = dirName = os.path.join(".\\tensorboard", logname+dsname[:dsname.find(".")])
+        # if not os.path.exists(dirName):
+        #     os.makedirs(dirName)
+        from torch.utils.tensorboard import SummaryWriter
+        writer = SummaryWriter(log_dir=dirName)
+        args.writer = writer
+        log.info("using tensorboard, data stored under "+dirName)
+    else:
+        args.writer = None
+
 
     dirName = args.result + logname+dsname[:dsname.find(".")]+"\\"
     # if not os.path.exists(dirName):
@@ -70,12 +83,10 @@ def GetDataset(path):
     log.info("reading dataset " + path)
     with open(path, "rb") as f:
         data = pickle.load(f)
-    indel = np.array(data['indel'], dtype=np.float)/np.array(data['cnts'], dtype=np.float)
-    ds = dataset.BaseEditingDataset(data['mapping'], data['seq'], indel, editBase = 3, rawSequence=False)
+    ds = dataset.BaseEditingDataset(data['mapping'], data['seq'], data["indel"], editBase = 3, rawSequence=False)
     dsTrain, dsValid, dsTest = dataset.SplitDataset(ds)
     log.info("finish dataset construction")
     return dsTrain, dsValid, dsTest
-
 
 
 def main():
@@ -94,28 +105,40 @@ def main():
     log.info("start training\n-------------------")
     
     for i in range(args.epoch):
+
         totalLoss = functions.trainonce(model, dsTrain, optim, cri, device, args.baseIndex)
         log.info("epoch " + str(i)+": Total Loss: "+str(totalLoss))
 
-        pre, tru, indelpre, indeltruth = functions.test(model, dsTrain, args.baseIndex, device)
-        res1, res2 = functions.eval(pre, tru, args.evalpositions)
-        indelpearson = functions.CalculatePearson(indelpre, indeltruth)
         log.info("results on training set")
         pre, tru, indelpre, indeltruth = functions.test(model, dsTrain, args.baseIndex, device)
         res1, res2 = functions.eval(pre, tru, args.evalpositions)
-        indelpearson = functions.CalculatePearson(indelpre, indeltruth)
+        indelpearson, indelRMSE = functions.CalculatePearson(indelpre, indeltruth)
         log.info("training results: pearson "+str(res1)+" RMSE "+str(res2))
-        log.info("training indel results "+str(indelpearson))
+        log.info("training indel results: pearson "+str(indelpearson)+" RMSE "+str(indelRMSE))
+
+        if args.tensorboard:
+            args.writer.add_scalar("Loss/train", totalLoss, i)
+            args.writer.add_scalar("Efficiency/train/pearson", res1, i)
+            args.writer.add_scalar("Efficiency/train/RMSE", res2, i)
+            args.writer.add_scalar("Indel/train/pearson", indelpearson, i)
+            args.writer.add_scalar("Indel/train/RMSE", indelRMSE, i)
 
         log.info("testing on validation set")
+        totalLoss = functions.CalculateLoss(model, dsTest, cri, device, args.baseIndex)
         pre, tru, indelpre, indeltruth = functions.test(model, dsValid, args.baseIndex, device)
         res1, res2 = functions.eval(pre, tru, args.evalpositions)
-        indelpearson = functions.CalculatePearson(indelpre, indeltruth)
-
-
+        indelpearson, indelRMSE = functions.CalculatePearson(indelpre, indeltruth)
 
         log.info("validation results: pearson "+str(res1)+" RMSE "+str(res2))
-        log.info("validation indel results "+str(indelpearson))
+        log.info("validation indel results: pearson "+str(indelpearson)+" RMSE "+str(indelRMSE))
+
+        if args.tensorboard:
+            args.writer.add_scalar("Loss/test", totalLoss, i)
+            args.writer.add_scalar("Efficiency/test/pearson", res1, i)
+            args.writer.add_scalar("Efficiency/test/RMSE", res2, i)
+            args.writer.add_scalar("Indel/test/pearson", indelpearson, i)
+            args.writer.add_scalar("Indel/test/RMSE", indelRMSE, i)
+
         if res1 > bestval:
             bestval = res1 
             bestepoch = i
