@@ -100,6 +100,9 @@ def main():
     bestval = -2.0
     bestepoch = -1
 
+    bestindel = -2.0 
+    bestindelepoch = -1
+
     cri = nn.MSELoss()
     checkpoint_path = os.path.join(args.checkpoints, '{epoch}-{net}.pth')
     log.info("start training\n-------------------")
@@ -139,11 +142,18 @@ def main():
             args.writer.add_scalar("Indel/test/pearson", indelpearson, i)
             args.writer.add_scalar("Indel/test/RMSE", indelRMSE, i)
 
+        if indelpearson > bestindel:
+            bestindel = indelpearson
+            bestindelepoch = i 
+            log.info("Best model for indel, saving...")
+            torch.save(model, checkpoint_path.format(epoch=i, net="bestindel"))
+
+
         if res1 > bestval:
             bestval = res1 
             bestepoch = i
-            log.info("Best model, saving....")
-            torch.save(model, checkpoint_path.format(epoch=i, net="best"))
+            log.info("Best model for efficiency, saving....")
+            torch.save(model, checkpoint_path.format(epoch=i, net="besteffi"))
 
         if args.savefreq > 0:
             if (i+1) % args.savefreq == 0:
@@ -153,15 +163,20 @@ def main():
 
     log.info("finished training, saving final model")
     torch.save(model, checkpoint_path.format(epoch=args.epoch, net="final"))
-    log.info("loading best model for evaluation")
-    model = torch.load(checkpoint_path.format(epoch=bestepoch, net="best"))
+    log.info("loading best model for efficiency evaluation")
+    model = torch.load(checkpoint_path.format(epoch=bestepoch, net="besteffi"))
     
     log.info("finish loading model, testing and saving results")
     if not os.path.exists(args.result):
         os.makedirs(args.result)
     res1, res2 = functions.CalculateAllResults(model, dsTest, args.baseIndex, args.result, args.evalpositions, device)
-    log.info("test results: pearson "+str(res1)+" RMSE "+str(res2))
-    
+    log.info("test efficiency results: pearson "+str(res1)+" RMSE "+str(res2))
+
+    log.info("loading best model for indel")
+    model = torch.load(checkpoint_path.format(epoch=bestindelepoch, net="bestindel")) 
+    pre, tru, indelpre, indeltruth = functions.test(model, dsTest, args.baseIndex, device)
+    indelpearson, indelRMSE = functions.CalculatePearson(indelpre, indeltruth)
+    log.info("test indel results: pearson" + str(indelpearson)+" RMSE "+str(indelRMSE))
     log.info("finshed!")
 
 if __name__ == '__main__':
