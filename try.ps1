@@ -1,4 +1,4 @@
-Get-ChildItem ./ | ForEach-Object -Process{
+Get-ChildItem ../Libps/ | ForEach-Object -Process{
     if($_ -is [System.IO.FileInfo])
     {
         $b = $_
