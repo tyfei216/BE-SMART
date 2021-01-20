@@ -20,7 +20,7 @@ def Args():
     parser.add_argument("-checkpoints", type=str, default="./checkpoints/", help="the path to the folder for saving models")
     parser.add_argument("-ds", required=True, type=str, help="path to the dataset")
     parser.add_argument("-savefreq", default=-1, type=int, help="saving the model every ? epoches")
-    parser.add_argument("-epoch", default=100, type=int, help="number of epoches to train")
+    parser.add_argument("-epoch", default=400, type=int, help="number of epoches to train")
     parser.add_argument("-result", default=".\\results\\", type=str, help="path to save the results")
     parser.add_argument("-evalpositions", action="extend", nargs="+", type=int, default=None, help="the position for pearson calculation, intergers[0-20]")
     parser.add_argument("-lr", type=float, default=0.00002, help="learning rate")
@@ -28,6 +28,7 @@ def Args():
     parser.add_argument("-dropout", type=float, default=0.3, help="dropout rates")
     parser.add_argument("-baseIndex", type=int, default=2, help="which base to predict (T:1, G:2)")
     parser.add_argument("-tensorboard", action="store_true", help="whether to use tensorboard to record training information")
+    parser.add_argument("-stop", type=int, default=30, help="the number of epoches to stopping training without better results")
     args = parser.parse_args()
     if not os.path.exists(args.log):
         os.makedirs(args.log)
@@ -107,7 +108,11 @@ def main():
     checkpoint_path = os.path.join(args.checkpoints, '{epoch}-{net}.pth')
     log.info("start training\n-------------------")
     
+    cnt = 0
+
     for i in range(args.epoch):
+
+        cnt += 1
 
         totalLoss = functions.trainonce(model, dsTrain, optim, cri, device, args.baseIndex)
         log.info("epoch " + str(i)+": Total Loss: "+str(totalLoss))
@@ -143,6 +148,7 @@ def main():
             args.writer.add_scalar("Indel/test/RMSE", indelRMSE, i)
 
         if indelpearson > bestindel:
+            cnt = 0
             bestindel = indelpearson
             bestindelepoch = i 
             log.info("Best model for indel, saving...")
@@ -150,6 +156,7 @@ def main():
 
 
         if res1 > bestval:
+            cnt = 0
             bestval = res1 
             bestepoch = i
             log.info("Best model for efficiency, saving....")
@@ -160,6 +167,9 @@ def main():
                 log.info("regularly saving model...")
                 torch.save(model, checkpoint_path.format(epoch=i, net="regular"))
         log.info("finish epoch "+str(i)+"\n-------------------")
+
+        if cnt > args.stop:
+            break
 
     log.info("finished training, saving final model")
     torch.save(model, checkpoint_path.format(epoch=args.epoch, net="final"))
