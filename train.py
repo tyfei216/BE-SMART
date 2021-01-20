@@ -32,7 +32,11 @@ def Args():
     args = parser.parse_args()
     if not os.path.exists(args.log):
         os.makedirs(args.log)
-    logname = log.init_logs(args.log) 
+
+    dsname = os.path.basename(args.ds)
+    dsname = dsname[:dsname.find(".")]
+    
+    logname = log.init_logs(logPath=args.log, label=dsname) 
     if args.evalpositions == None:
         args.evalpositions = [3,4,5,6,7]
     if args.models == None:

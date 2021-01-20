@@ -33,13 +33,13 @@ def error(message):
 
     logger.error(message)
 
-def init_logs(logPath="./log/"):
+def init_logs(logPath="./log/", label = ""):
     global logger
     logger = logging.getLogger()
     logger.setLevel(logging.NOTSET)
 
     logName = time.strftime('%Y%m%d%H%M', time.localtime(time.time()))
-    logFile = logPath+logName+".log"
+    logFile = logPath+logName+label+".log"
     fh = logging.FileHandler(logFile, mode='w') 
     fh.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s - %(levelname)s: %(message)s")
