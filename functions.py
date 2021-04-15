@@ -25,14 +25,14 @@ def test(model, dsTest, baseIndex):
             mask = mask.float()
             target = target.float()
             indel = indel.float()
-            out, indelpre = model(seq.long())
+            out = model(seq.long())
 
             target = target.numpy()
             out = out.numpy()
-            indelpre = indelpre.numpy()
+            #indelpre = indelpre.numpy()
 
             for l in range(target.shape[0]):
-                indelpredict.append(indelpre[l])
+                #indelpredict.append(indelpre[l])
                 indeltruth.append(indel[l])
                 for m in range(20):
                     if mask[l][m+10] > 0.5:
@@ -42,7 +42,7 @@ def test(model, dsTest, baseIndex):
                         #total.append(out[l][m])
                         #totalres.append(target[l][m+10][base])
 
-    return predict, truth, indelpredict, indeltruth
+    return predict, truth#, indelpredict, indeltruth
 
 def trainonce(model, ds, optimizer, criterion, device, baseIndex):
     
@@ -55,11 +55,11 @@ def trainonce(model, ds, optimizer, criterion, device, baseIndex):
         target = target.float().to(device)
         indel = indel.float().to(device)
         
-        out, indelpredict = model(seq)  
+        out = model(seq)  
         loss = (out*100 - target[:, 10:30, baseIndex]*100) 
         loss = loss * mask[:, 10:30]
         
-        lossr = criterion(loss, torch.zeros_like(loss)) + criterion(indelpredict, indel)
+        lossr = criterion(loss, torch.zeros_like(loss))# + criterion(indelpredict, indel)
         totalloss += lossr.item()
 
         optimizer.zero_grad() 
@@ -110,7 +110,7 @@ def CalculateAllResults(model, dsTest, baseIndex, savepath, positions):
         mask = mask.float()
         target = target.float()
         indel = indel.float()
-        out, _ = model(seq.long())
+        out = model(seq.long())
 
 
         seq = seq.detach().numpy()

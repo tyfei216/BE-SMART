@@ -20,7 +20,7 @@ def Args():
     parser.add_argument("-checkpoints", type=str, default="./checkpoints/", help="the path to the folder for saving models")
     parser.add_argument("-ds", required=True, type=str, help="path to the dataset")
     parser.add_argument("-savefreq", default=-1, type=int, help="saving the model every ? epoches")
-    parser.add_argument("-epoch", default=300, type=int, help="number of epoches to train")
+    parser.add_argument("-epoch", default=100, type=int, help="number of epoches to train")
     parser.add_argument("-result", default=".\\results\\", type=str, help="path to save the results")
     parser.add_argument("-evalpositions", action="extend", nargs="+", type=int, default=None, help="the position for pearson calculation, intergers[0-20]")
     parser.add_argument("-lr", type=float, default=0.00002, help="learning rate")
@@ -97,25 +97,25 @@ def main():
         totalLoss = functions.trainonce(model, dsTrain, optim, cri, device, args.baseIndex)
         log.info("epoch " + str(i)+": Total Loss: "+str(totalLoss))
 
-        pre, tru, indelpre, indeltruth = functions.test(model, dsTrain, args.baseIndex)
+        pre, tru = functions.test(model, dsTrain, args.baseIndex)
         res1, res2 = functions.eval(pre, tru, args.evalpositions)
-        indelpearson = functions.CalculatePearson(indelpre, indeltruth)
+        #indelpearson = functions.CalculatePearson(indelpre, indeltruth)
         log.info("results on training set")
-        pre, tru, indelpre, indeltruth = functions.test(model, dsTrain, args.baseIndex)
+        pre, tru = functions.test(model, dsTrain, args.baseIndex)
         res1, res2 = functions.eval(pre, tru, args.evalpositions)
-        indelpearson = functions.CalculatePearson(indelpre, indeltruth)
+        #indelpearson = functions.CalculatePearson(indelpre, indeltruth)
         log.info("training results: pearson "+str(res1)+" RMSE "+str(res2))
-        log.info("training indel results "+str(indelpearson))
+        #log.info("training indel results "+str(indelpearson))
 
         log.info("testing on validation set")
-        pre, tru, indelpre, indeltruth = functions.test(model, dsValid, args.baseIndex)
+        pre, tru = functions.test(model, dsValid, args.baseIndex)
         res1, res2 = functions.eval(pre, tru, args.evalpositions)
-        indelpearson = functions.CalculatePearson(indelpre, indeltruth)
+        #indelpearson = functions.CalculatePearson(indelpre, indeltruth)
 
 
 
         log.info("validation results: pearson "+str(res1)+" RMSE "+str(res2))
-        log.info("validation indel results "+str(indelpearson))
+        #log.info("validation indel results "+str(indelpearson))
         if res1 > bestval:
             bestval = res1 
             bestepoch = i
