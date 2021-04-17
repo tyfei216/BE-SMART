@@ -7,11 +7,12 @@ import torch
 mapping = {'A':0,'T':1,'G':2,'C':3}
 
 class BaseEditingDataset(Dataset):
-    def __init__(self, data, sequence, indel, editBase = 'C', rawSequence = True):
+    def __init__(self, data, sequence, indel, allp, editBase = 'C', rawSequence = True):
 
         super(BaseEditingDataset, self).__init__()
         data = torch.tensor(data).float()
         self.data = data
+        self.allp = allp
         #log.debug("building base editing dataset with dimensions: " + str(data.shape))
         
         assert(data.shape[1] == 40)
@@ -48,8 +49,9 @@ class BaseEditingDataset(Dataset):
         cpos = self.Cpos[index]
         data = self.data[index]
         indel = self.indel[index]
+        allp = self.allp[index][0]
 
-        return seq, cpos, data, indel
+        return seq, cpos, data, indel, allp
 
 def SplitDataset(ds:BaseEditingDataset, sizes=None):
     

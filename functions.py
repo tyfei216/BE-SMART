@@ -6,6 +6,9 @@ from sklearn.metrics import mean_squared_error
 from math import sqrt
 import pandas as pd
 
+start = 10 
+length = 20
+
 def test(model, dsTest, baseIndex):
     predict = []
     truth = []
@@ -20,12 +23,12 @@ def test(model, dsTest, baseIndex):
     model = model.eval().cpu()
     with torch.no_grad():
         for _, j in enumerate(dsTest):
-            seq, mask, target, indel = j 
+            seq, mask, target, indel, allp = j 
             seq = seq.long() 
             mask = mask.float()
             target = target.float()
             indel = indel.float()
-            out = model(seq.long())
+            out, _ = model(seq.long())
 
             target = target.numpy()
             out = out.numpy()
@@ -38,7 +41,7 @@ def test(model, dsTest, baseIndex):
                     if mask[l][m+10] > 0.5:
                         #print("here")
                         predict[m].append(out[l][m])
-                        truth[m].append(target[l][m+10][baseIndex])
+                        truth[m].append(target[l][m+start][baseIndex])
                         #total.append(out[l][m])
                         #totalres.append(target[l][m+10][base])
 
@@ -49,17 +52,18 @@ def trainonce(model, ds, optimizer, criterion, device, baseIndex):
     model = model.train().to(device)
     totalloss = 0.0
     for _, j in enumerate(ds):
-        seq, mask, target, indel = j 
+        seq, mask, target, indel, allp = j 
         seq = seq.long().to(device)
         mask = mask.float().to(device)
         target = target.float().to(device)
         indel = indel.float().to(device)
+        allp = allp.float().to(device)
         
-        out = model(seq)  
-        loss = (out*100 - target[:, 10:30, baseIndex]*100) 
-        loss = loss * mask[:, 10:30]
+        out, editproportion = model(seq)  
+        loss = (out*100 - target[:, start:start+length, baseIndex]*100) 
+        loss = loss * mask[:, start:start+length]
         
-        lossr = criterion(loss, torch.zeros_like(loss))# + criterion(indelpredict, indel)
+        lossr = criterion(loss, torch.zeros_like(loss)) + criterion(editproportion.squeeze(), allp)
         totalloss += lossr.item()
 
         optimizer.zero_grad() 
@@ -105,12 +109,12 @@ def CalculateAllResults(model, dsTest, baseIndex, savepath, positions):
 
     model = model.eval().cpu()
     for _, j in enumerate(dsTest):
-        seq, mask, target, indel = j 
+        seq, mask, target, indel, _ = j 
         seq = seq.long() 
         mask = mask.float()
         target = target.float()
         indel = indel.float()
-        out = model(seq.long())
+        out, _ = model(seq.long())
 
 
         seq = seq.detach().numpy()

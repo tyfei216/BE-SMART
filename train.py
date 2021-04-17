@@ -34,7 +34,7 @@ def Args():
     if args.evalpositions == None:
         args.evalpositions = [3,4,5,6,7]
     if args.models == None:
-        args.models = [3,3,3,4,4,4,5,5,5]
+        args.models = [3,4,5]#[3,3,3,4,4,4,5,5,5]
     if args.gpu:
         if not torch.cuda.is_available():
             log.error("CUDA is not available! Try without the -gpu option to run on cpu")
@@ -71,7 +71,7 @@ def GetDataset(path):
     with open(path, "rb") as f:
         data = pickle.load(f)
     indel = np.array(data['indel'], dtype=np.float)/np.array(data['cnts'], dtype=np.float)
-    ds = dataset.BaseEditingDataset(data['mapping'], data['seq'], indel, editBase = 3, rawSequence=False)
+    ds = dataset.BaseEditingDataset(data['mapping'], data['seq'], indel, data['allp'], editBase = 3, rawSequence=False)
     dsTrain, dsValid, dsTest = dataset.SplitDataset(ds)
     log.info("finish dataset construction")
     return dsTrain, dsValid, dsTest
