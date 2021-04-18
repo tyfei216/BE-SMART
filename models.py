@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class BaseUnit(nn.Module):
-    def __init__(self, src_vocab=4, inputDim=5, embedDim=16, hiddenDim=128, dropout=0.3, outputLatent=True):
+    def __init__(self, src_vocab=4, inputDim=5, embedDim=16, hiddenDim=128, dropout=0.3, outputLatent=False, globalDim=16):
         super(BaseUnit, self).__init__()
         self.outputLatent = outputLatent
         
@@ -12,17 +12,18 @@ class BaseUnit(nn.Module):
         #self.dropout0 = nn.Dropout(0.3)
         self.fc1 = nn.Conv1d(embedDim, hiddenDim, inputDim*2+1, padding=0)
         self.dropout1 = nn.Dropout(dropout)
-        self.fc2 = nn.Linear(hiddenDim, hiddenDim)
+        #self.fc2 = nn.Linear(hiddenDim, hiddenDim)
+        self.fc2 = nn.Linear(hiddenDim+globalDim, hiddenDim)
         self.dropout2 = nn.Dropout(dropout)
         self.fc3 = nn.Linear(hiddenDim, 1)
 
-    def forward(self, x):
+    def forward(self, x, y):
         x = self.embedding(x)
         # x = self.dropout0(x)
         x = x.transpose(-1, -2)
         x = F.relu(self.fc1(x)).squeeze()
         x = self.dropout1(x)
-        #x = torch.cat((x, y), dim=1)
+        x = torch.cat((x, y), dim=1)
         x = F.relu(self.fc2(x))
         out = self.dropout2(x)
         out = torch.sigmoid(self.fc3(out))
@@ -33,7 +34,7 @@ class BaseUnit(nn.Module):
         return out.squeeze()
 
 class BaseModel(nn.Module):
-    def __init__(self, length=5, dropout=0.3, outputLatent=True):
+    def __init__(self, length=5, dropout=0.3, outputLatent=False):
         super(BaseModel, self).__init__()
         self.length = length
         single = BaseUnit(inputDim=length, dropout=dropout, outputLatent=outputLatent)
@@ -41,7 +42,7 @@ class BaseModel(nn.Module):
 
         self.outputLatent = outputLatent
 
-    def forward(self, x):
+    def forward(self, x, y):
         results = []
         if self.outputLatent:
             intermediate = []
@@ -54,7 +55,7 @@ class BaseModel(nn.Module):
                 intermediate.append(out)
             
             else:
-                res = self.allmodels[i](x[:,10+i-self.length:11+i+self.length]).view(-1, 1)
+                res = self.allmodels[i](x[:,10+i-self.length:11+i+self.length], y).view(-1, 1)
                 results.append(res)
             
         res = torch.cat(results, 1)
@@ -76,15 +77,15 @@ class Decoder(nn.Module):
         return x#.squeeze()
 
 class Encoder(nn.Module):
-    def __init__(self, src_vocab=4, inputDim=40, embedDim=16, hiddenDim=1024, outputDim=16, dropout=0.3):
+    def __init__(self, src_vocab=4, inputDim=40, embedDim=16, hiddenDim=256, outputDim=16, dropout=0.3):
         super(Encoder, self).__init__()
         self.embedding = nn.Embedding(src_vocab, embedDim)
         #self.dropout0 = nn.Dropout(0.3)
-        self.fc1 = nn.Conv1d(embedDim, hiddenDim, inputDim, padding=0)
+        self.fc1 = nn.Conv1d(embedDim, 128, 5, padding=0)
         self.dropout1 = nn.Dropout(dropout)
-        self.fc2 = nn.Linear(hiddenDim, hiddenDim//2)
+        self.fc2 = nn.Linear(128*(inputDim-4), hiddenDim)
         self.dropout2 = nn.Dropout(dropout)
-        self.fc3 = nn.Linear(hiddenDim//2, outputDim)
+        self.fc3 = nn.Linear(hiddenDim, outputDim)
 
     def forward(self, x):
         x = self.embedding(x)
@@ -92,6 +93,7 @@ class Encoder(nn.Module):
         x = x.transpose(-1, -2)
         x = F.relu(self.fc1(x)).squeeze()
         x = self.dropout1(x)
+        x = x.view(x.shape[0], -1)
         x = F.relu(self.fc2(x))
         x = self.dropout2(x)
         x = torch.sigmoid(self.fc3(x))
@@ -105,7 +107,7 @@ class Proportion(nn.Module):
         self.d1 = nn.Dropout(dropout)
         self.fc2 = nn.Linear(hiddenDim, hiddenDim)
         self.d2 = nn.Dropout(dropout)
-        self.fc3 = nn.L1near(hiddenDim, 255) 
+        self.fc3 = nn.Linear(hiddenDim, 255) 
 
     def forward(self, x):
         x = x.transpose(-1, -2)
@@ -142,13 +144,13 @@ class FullModel(nn.Module):
         y = self.encoder(x)
 
         allres = []
-        features = []
+        #features = []
         for i in range(len(self.models)):
-            res, q = self.models[i](x)
-            features.append(q[:, :10, :])
+            res = self.models[i](x, y)
+            #features.append(q[:, :10, :])
             allres.append(res)
 
-        features = torch.cat(features, dim=2)
+        #features = torch.cat(features, dim=2)
         #pro = self.proportion(features.detach())
         #print(allres)
         z = self.decoder(y)

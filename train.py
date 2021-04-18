@@ -9,6 +9,7 @@ import pickle
 import time
 import torch.nn as nn
 import numpy as np
+import bayesianNetwork
 
 device = None
 
@@ -19,6 +20,8 @@ def Args():
     parser.add_argument("-log", default=".\\log\\", type=str, help="the path to the logfile folder")
     parser.add_argument("-checkpoints", type=str, default="./checkpoints/", help="the path to the folder for saving models")
     parser.add_argument("-ds", required=True, type=str, help="path to the dataset")
+    parser.add_argument("-split", type=str, default=None, help="path to the split file of the dataset")
+    parser.add_argument("-splitSave", type=str, default=None, help="name of the splitfile name to save. Used only when split file is not given")
     parser.add_argument("-savefreq", default=-1, type=int, help="saving the model every ? epoches")
     parser.add_argument("-epoch", default=100, type=int, help="number of epoches to train")
     parser.add_argument("-result", default=".\\results\\", type=str, help="path to save the results")
@@ -34,7 +37,8 @@ def Args():
     if args.evalpositions == None:
         args.evalpositions = [3,4,5,6,7]
     if args.models == None:
-        args.models = [3,4,5]#[3,3,3,4,4,4,5,5,5]
+        args.models = [3,3,4,4,5,5]#[3,3,3,4,4,4,5,5,5] 
+
     if args.gpu:
         if not torch.cuda.is_available():
             log.error("CUDA is not available! Try without the -gpu option to run on cpu")
@@ -49,15 +53,23 @@ def Args():
     if not os.path.exists(args.ds):
         log.error("dataset doesn't exist")
         exit()
-    
+        
     dsname = os.path.basename(args.ds)
     dirName = args.checkpoints + logname+dsname[:dsname.find(".")]+"\\"
+
+    if args.split == None:
+        if not os.path.exists("./split"):
+            log.info("creating split file directory")
+            os.mkdir("./split")
+        if args.splitSave == None:
+            args.splitSave = os.path.join("./split",logname+"_"+dsname[:dsname.find(".")]+".pkl")
+
     if not os.path.exists(dirName):
         os.makedirs(dirName)
     args.checkpoints = dirName
     log.info("models will be saved under "+dirName)
 
-    dirName = args.result + logname+dsname[:dsname.find(".")]+"\\"
+    dirName = args.result + logname + dsname[:dsname.find(".")]+"\\"
     # if not os.path.exists(dirName):
     #     os.makedirs(dirName)
     args.result = dirName
@@ -66,21 +78,38 @@ def Args():
     log.info("model uses "+str(args.evalpositions)+" for evaluation")
     return args
 
-def GetDataset(path):
+def GetDataset(args, path, path2=None):
+    
     log.info("reading dataset " + path)
     with open(path, "rb") as f:
         data = pickle.load(f)
+    
+    if path2 != None:
+        log.info("using split file " + path2)
+        with open(path2, "rb") as f:
+            indices = pickle.load(f)
+    else:
+        indices = None
+     
     indel = np.array(data['indel'], dtype=np.float)/np.array(data['cnts'], dtype=np.float)
     ds = dataset.BaseEditingDataset(data['mapping'], data['seq'], indel, data['allp'], editBase = 3, rawSequence=False)
-    dsTrain, dsValid, dsTest = dataset.SplitDataset(ds)
+
+    dsTrain, dsValid, dsTest, indices = dataset.SplitDataset(ds, split=indices, savepath=args.splitSave)
     log.info("finish dataset construction")
-    return dsTrain, dsValid, dsTest
 
+    log.info("initializing BayesianNetwork")
+    bN = bayesianNetwork.BayesianNetwork(path, [13,14,15,16,17,18,19,20], indices=indices[:7*len(indices)//10])
+    log.info("finish BayesianNetwork initialization")
 
+    return dsTrain, dsValid, dsTest, bN
 
 def main():
     args = Args()
-    dsTrain, dsValid, dsTest = GetDataset(args.ds)
+    dsTrain, dsValid, dsTest, bN = GetDataset(args, args.ds, path2=args.split)
+
+    log.info("saving bayesianNetwork")
+    with open(os.path.join(args.checkpoints, "bayesianNetwork.pkl"), "wb") as f:
+        pickle.dump(bN, f)
 
     log.info("build model")
     model = models.FullModel(lengthlist=args.models, dropout=args.dropout)
@@ -97,8 +126,8 @@ def main():
         totalLoss = functions.trainonce(model, dsTrain, optim, cri, device, args.baseIndex)
         log.info("epoch " + str(i)+": Total Loss: "+str(totalLoss))
 
-        pre, tru = functions.test(model, dsTrain, args.baseIndex)
-        res1, res2 = functions.eval(pre, tru, args.evalpositions)
+        # pre, tru = functions.test(model, dsTrain, args.baseIndex)
+        # res1, res2 = functions.eval(pre, tru, args.evalpositions)
         #indelpearson = functions.CalculatePearson(indelpre, indeltruth)
         log.info("results on training set")
         pre, tru = functions.test(model, dsTrain, args.baseIndex)
@@ -106,6 +135,11 @@ def main():
         #indelpearson = functions.CalculatePearson(indelpre, indeltruth)
         log.info("training results: pearson "+str(res1)+" RMSE "+str(res2))
         #log.info("training indel results "+str(indelpearson))
+
+        log.info("results on testing set")
+        pre, tru = functions.test(model, dsTest, args.baseIndex)
+        res1, res2 = functions.eval(pre, tru, args.evalpositions)
+        log.info("testing results: pearson "+str(res1)+" RMSE "+str(res2))
 
         log.info("testing on validation set")
         pre, tru = functions.test(model, dsValid, args.baseIndex)

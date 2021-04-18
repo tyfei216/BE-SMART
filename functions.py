@@ -58,12 +58,15 @@ def trainonce(model, ds, optimizer, criterion, device, baseIndex):
         target = target.float().to(device)
         indel = indel.float().to(device)
         allp = allp.float().to(device)
+        allp = allp.unsqueeze(1)
         
-        out, editproportion = model(seq)  
-        loss = (out*100 - target[:, start:start+length, baseIndex]*100) 
+        out, editproportion = model(seq) 
+        target = target[:, start:start+length, baseIndex]#/(1-allp) 
+        
+        loss = (out*100 - target*100) 
         loss = loss * mask[:, start:start+length]
         
-        lossr = criterion(loss, torch.zeros_like(loss)) + criterion(editproportion.squeeze(), allp)
+        lossr = criterion(loss, torch.zeros_like(loss))# + criterion(editproportion, 1-allp)
         totalloss += lossr.item()
 
         optimizer.zero_grad() 

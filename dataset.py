@@ -1,3 +1,4 @@
+import pickle
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import random
@@ -53,7 +54,7 @@ class BaseEditingDataset(Dataset):
 
         return seq, cpos, data, indel, allp
 
-def SplitDataset(ds:BaseEditingDataset, sizes=None):
+def SplitDataset(ds:BaseEditingDataset, sizes=None, split=None, savepath=None):
     
     if sizes == None:
         sizes = [6, 1, 3]
@@ -67,11 +68,18 @@ def SplitDataset(ds:BaseEditingDataset, sizes=None):
         log.warning("invalid split of "+str(sizes))
         sizes = [6,1,3]
         log.warning("returning to default split of "+str(sizes))
-
+    
     splits1 = len(ds)*sizes[0]//10
     splits2 = len(ds)*(sizes[0]+sizes[1])//10
-    indices = list(range(len(ds)))
-    random.shuffle(indices)
+    if split == None:
+        log.info("randomizing new splits")        
+        indices = list(range(len(ds)))
+        random.shuffle(indices)
+        if savepath != None:
+            with open(savepath, "wb") as f: 
+                pickle.dump(indices, f)
+    else:
+        indices = split
 
     trainSampler = torch.utils.data.sampler.SubsetRandomSampler(indices[:splits1])
     dsTrain = DataLoader(ds, sampler=trainSampler, batch_size=20)
@@ -82,5 +90,5 @@ def SplitDataset(ds:BaseEditingDataset, sizes=None):
     testSampler = torch.utils.data.sampler.SubsetRandomSampler(indices[splits2:])
     dsTest = DataLoader(ds, sampler=testSampler, batch_size=100)
 
-    return dsTrain, dsValid, dsTest
+    return dsTrain, dsValid, dsTest, indices
 
