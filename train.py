@@ -10,8 +10,30 @@ import time
 import torch.nn as nn
 import numpy as np
 import bayesianNetwork
-
+import configparser 
 device = None
+
+def writeConfig(args, bestEpoch, path):
+    config = configparser.ConfigParser() 
+
+    splitname = args.split 
+    if splitname == None:
+        splitname = args.splitSave
+        
+    config["meta"] = {
+        "dataset":args.ds, 
+        "predictBase":args.baseIndex, 
+        "editBase":args.editbase,
+        "bN":os.path.join(args.checkpoints, "bayesianNetwork.pkl"),
+        "window":args.evalpositions, 
+        "split":splitname
+    }
+    config["train"] = {
+        "epoches":args.epoch, 
+        "best":bestEpoch
+    }
+    with open(path, "wb") as f:
+        config.write(f)  
 
 def Args():
     parser = argparse.ArgumentParser()
@@ -20,6 +42,7 @@ def Args():
     parser.add_argument("-log", default=".\\log\\", type=str, help="the path to the logfile folder")
     parser.add_argument("-checkpoints", type=str, default="./checkpoints/", help="the path to the folder for saving models")
     parser.add_argument("-ds", required=True, type=str, help="path to the dataset")
+    parser.add_argument("-editBase", default=3, type=int, help="which base to edit")
     parser.add_argument("-split", type=str, default=None, help="path to the split file of the dataset")
     parser.add_argument("-splitSave", type=str, default=None, help="name of the splitfile name to save. Used only when split file is not given")
     parser.add_argument("-savefreq", default=-1, type=int, help="saving the model every ? epoches")
@@ -172,7 +195,7 @@ def main():
         os.makedirs(args.result)
     res1, res2 = functions.CalculateAllResults(model, dsTest, args.baseIndex, args.result, args.evalpositions)
     log.info("test results: pearson "+str(res1)+" RMSE "+str(res2))
-    
+    writeConfig(args, checkpoint_path.format(epoch=bestepoch, net="best"), os.path.join(args.checkpoints, "config.ini"))
     log.info("finshed!")
 
 if __name__ == '__main__':

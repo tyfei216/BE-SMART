@@ -79,9 +79,12 @@ def eval(pre1, real1, positions):
 
     pre = [] 
     real = []
+    allres1 = [] 
+    allres2 = []
     for i in positions:
         pre.extend(pre1[i])
         real.extend(real1[i])
+        allres2.append(np.mean(real1[i]))
 
     res1 = np.corrcoef(np.asarray(pre), np.asarray(real))[0, 1]
     res2 = sqrt(mean_squared_error(pre, real))
@@ -160,6 +163,18 @@ def CalculateAllResults(model, dsTest, baseIndex, savepath, positions):
     g.close()
 
     return res1, res2
+
+
+def getmargin(data, start1, end1, start2, end2):
+    ret = np.zeros((2**len(end2-start2)))
+    for i in range(len(data)):
+        idx = 0 
+        for j in range(end1-start1):
+            if ((1<<j) & i) > 0:
+                if j+start1 >= start2 and j+start1<end2:
+                    idx += 1 << (j+start1-start2)
+        ret[idx] += data[i] 
+    return ret 
 
 def CalculateOneSeq(model, sequence):
     assert(len(sequence) == 40)

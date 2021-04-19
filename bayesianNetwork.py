@@ -6,7 +6,7 @@ import log
 
 def countfrequency(data, positions, indices=None, metric="cross"):
     length = len(positions)  
-    #pseudo counts
+    # pseudo counts
     pos0 = np.ones((length, length))
     pos1 = np.ones((length, length))
     neg0 = np.ones((length, length))
@@ -43,10 +43,7 @@ def countfrequency(data, positions, indices=None, metric="cross"):
                         else:
                             pos1[positions.index(subset[k])][positions.index(subset[l])] += totalcnts*allp[i][j]
                             pos1[positions.index(subset[l])][positions.index(subset[k])] = pos1[positions.index(subset[k])][positions.index(subset[l])]
-    # print(pos0)
-    # print(pos1)
-    # print(neg0)
-    # print(neg1)
+
     s = pos0+pos1+neg0+neg1
     corr = (pos0*s-(neg0+pos0)*(neg1+pos0))/np.sqrt((neg1+pos0)*(neg1+pos1)*(neg0+pos1)*(neg0+pos0)) 
     if metric == "corr":
@@ -128,7 +125,7 @@ def solvecorr(a, b, c, d):
     y = (c-a*x)/b 
     return x, y
 
-def solve(a,b,c,d):
+def solve(a, b, c, d):
     t1 = b*(d-1)/a 
     t2 = d+b/a-c/a*(d-1) 
     t3 = -c/a 
@@ -177,6 +174,9 @@ class BayesianNetwork():
 
         res = BayesianNetworkResult(seq, pro, subset, base, values, bias)
         return res
+
+    def drawHeatMap(self, path):
+        raise NotImplementedError
 
 if __name__ == "__main__":
     # print(solvecorr(0.5, 0.5, 0.9, 0.9))
