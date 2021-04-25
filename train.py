@@ -11,6 +11,7 @@ import torch.nn as nn
 import numpy as np
 import bayesianNetwork
 import configparser 
+import draw
 device = None
 
 def writeConfig(args, bestEpoch, path):
@@ -23,16 +24,19 @@ def writeConfig(args, bestEpoch, path):
     config["meta"] = {
         "dataset":args.ds, 
         "predictBase":args.baseIndex, 
-        "editBase":args.editbase,
-        "bN":os.path.join(args.checkpoints, "bayesianNetwork.pkl"),
-        "window":args.evalpositions, 
+        "editBase":args.editBase,
+        "bN":args.checkpoints,
+        "window_start":args.evalpositions[0],
+        "window_end":args.evalpositions[-1], 
         "split":splitname
     }
     config["train"] = {
         "epoches":args.epoch, 
         "best":bestEpoch
     }
-    with open(path, "wb") as f:
+
+
+    with open(path, "w") as f:
         config.write(f)  
 
 def Args():
@@ -46,21 +50,23 @@ def Args():
     parser.add_argument("-split", type=str, default=None, help="path to the split file of the dataset")
     parser.add_argument("-splitSave", type=str, default=None, help="name of the splitfile name to save. Used only when split file is not given")
     parser.add_argument("-savefreq", default=-1, type=int, help="saving the model every ? epoches")
-    parser.add_argument("-epoch", default=100, type=int, help="number of epoches to train")
+    parser.add_argument("-epoch", default=200, type=int, help="number of epoches to train")
     parser.add_argument("-result", default=".\\results\\", type=str, help="path to save the results")
     parser.add_argument("-evalpositions", action="extend", nargs="+", type=int, default=None, help="the position for pearson calculation, intergers[0-20]")
     parser.add_argument("-lr", type=float, default=0.00002, help="learning rate")
     parser.add_argument("-weight_decay", type=float, default=0.0005, help="weight decay of parameters")
     parser.add_argument("-dropout", type=float, default=0.3, help="dropout rates")
     parser.add_argument("-baseIndex", type=int, default=2, help="which base to predict (T:1, G:2)")
+    parser.add_argument("-finalSave", type=str, default=None, help="path to final save")
+    parser.add_argument("-finalRes", type=str, default=None, help="the directory for the final results")
     args = parser.parse_args()
     if not os.path.exists(args.log):
         os.makedirs(args.log)
     logname = log.init_logs(args.log) 
     if args.evalpositions == None:
-        args.evalpositions = [3,4,5,6,7]
+        args.evalpositions = [2,3,4,5,6,7,8,9]
     if args.models == None:
-        args.models = [3,3,4,4,5,5]#[3,3,3,4,4,4,5,5,5] 
+        args.models = [3,3,3,4,4,4,5,5,5] 
 
     if args.gpu:
         if not torch.cuda.is_available():
@@ -113,22 +119,35 @@ def GetDataset(args, path, path2=None):
             indices = pickle.load(f)
     else:
         indices = None
-     
+    
     indel = np.array(data['indel'], dtype=np.float)/np.array(data['cnts'], dtype=np.float)
-    ds = dataset.BaseEditingDataset(data['mapping'], data['seq'], indel, data['allp'], editBase = 3, rawSequence=False)
+    ds = dataset.BaseEditingDataset(data['mapping'], data['seq'], indel, data['allp'], data['proportion'], editBase = 3, rawSequence=False)
 
-    dsTrain, dsValid, dsTest, indices = dataset.SplitDataset(ds, split=indices, savepath=args.splitSave)
+    log.info("length of the dataset "+str(len(data["indel"])))
+
+    dsTrain, dsValid, dsTest, indices = dataset.SplitDataset(ds, split=indices, savepath=args.splitSave, sizes = [8, 1, 1])
     log.info("finish dataset construction")
 
     log.info("initializing BayesianNetwork")
-    bN = bayesianNetwork.BayesianNetwork(path, [13,14,15,16,17,18,19,20], indices=indices[:7*len(indices)//10])
+    if "score" not in data.keys():
+        bN = bayesianNetwork.BayesianNetwork(path, [12,13,14,15,16,17,18,19,20], indices=indices[:7*len(indices)//10])
+        data["score"] = bN.score 
+        with open(path, "wb") as f:
+            pickle.dump(data, f) 
+    else:
+        score = data["score"] 
+        bN = bayesianNetwork.BayesianNetwork(path, [12,13,14,15,16,17,18,19,20], score=score, indices=indices[:7*len(indices)//10])
     log.info("finish BayesianNetwork initialization")
+
+
 
     return dsTrain, dsValid, dsTest, bN
 
 def main():
     args = Args()
     dsTrain, dsValid, dsTest, bN = GetDataset(args, args.ds, path2=args.split)
+    log.info("length of all datasets: dstrain "+str(len(dsTrain))+" dsTest "+str(len(dsTest))+" dsValid "+str(len(dsValid)))
+
 
     log.info("saving bayesianNetwork")
     with open(os.path.join(args.checkpoints, "bayesianNetwork.pkl"), "wb") as f:
@@ -144,7 +163,7 @@ def main():
     cri = nn.MSELoss()
     checkpoint_path = os.path.join(args.checkpoints, '{epoch}-{net}.pth')
     log.info("start training\n-------------------")
-    
+    log.info(str(functions.getkl(model, dsTest, bN)))
     for i in range(args.epoch):
         totalLoss = functions.trainonce(model, dsTrain, optim, cri, device, args.baseIndex)
         log.info("epoch " + str(i)+": Total Loss: "+str(totalLoss))
@@ -169,7 +188,7 @@ def main():
         res1, res2 = functions.eval(pre, tru, args.evalpositions)
         #indelpearson = functions.CalculatePearson(indelpre, indeltruth)
 
-
+        log.info("kldiv  "+ str(functions.getkl(model, dsTest, bN)))
 
         log.info("validation results: pearson "+str(res1)+" RMSE "+str(res2))
         #log.info("validation indel results "+str(indelpearson))
@@ -193,8 +212,14 @@ def main():
     log.info("finish loading model, testing and saving results")
     if not os.path.exists(args.result):
         os.makedirs(args.result)
+    if args.finalSave != None:
+        name = os.path.basename(args.ds[:-4])
+        torch.save(model, os.path.join(args.finalSave, name+".pth"))
+        writeConfig(args, os.path.join(args.finalSave, name+".pth"), os.path.join(args.finalSave, "config.ini"))
+    
     res1, res2 = functions.CalculateAllResults(model, dsTest, args.baseIndex, args.result, args.evalpositions)
     log.info("test results: pearson "+str(res1)+" RMSE "+str(res2))
+
     writeConfig(args, checkpoint_path.format(epoch=bestepoch, net="best"), os.path.join(args.checkpoints, "config.ini"))
     log.info("finshed!")
 

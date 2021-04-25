@@ -1,9 +1,11 @@
+import os
 import pickle
 import dataset 
 import numpy as np 
 import math
 import log
-
+import pickle
+import time
 def countfrequency(data, positions, indices=None, metric="cross"):
     length = len(positions)  
     # pseudo counts
@@ -59,10 +61,15 @@ class BayesianNetworkResult():
         seq = list(seq) 
         self.probability = probability 
         self.cpos = cpos 
-        self.ori = seq[cpos[0]]
+        
         self.res = {}
         self.allvalues = allvalues
         self.bias = bias
+        if len(cpos) > 0:
+            self.ori = seq[cpos[0]]
+        else:
+            self.ori = "C"
+            return
         #self.array = np.zeros((2**len(cpos)))
         #self.array[0]+=1-z
         for i in range(2**len(cpos)):
@@ -95,6 +102,9 @@ class BayesianNetworkResult():
             if i in self.cpos:
                 subset.append(i) 
         subset.sort() 
+        if len(subset)==0:
+            ret[0] = 1.0
+            return ret 
         #print(subset, self.allvalues)
         for i in range(2**len(subset)):
             idx = 0
@@ -135,12 +145,24 @@ def solve(a, b, c, d):
     return x, y 
 
 class BayesianNetwork():
-    def __init__(self, path, positions, indices=None, metric="cross") -> None:
-        with open(path, "rb") as f:
-            data = pickle.load(f) 
-        self.positions = positions 
+    def __init__(self, path=None, positions=None, indices=None, score=None, give = False,metric="cross") -> None:
+        if positions != None:
+            self.positions = positions
+        else:
+            self.positions = list(range(11, 30))
         #self.pos, self.neg = countfrequency(data, positions)
-        self.score = countfrequency(data, positions, indices=indices, metric=metric)
+        if not give:
+            if path == None:
+                print("path not given")
+                exit()
+            with open(path, "rb") as f:
+                data = pickle.load(f)
+            self.score = countfrequency(data, positions, indices=indices, metric=metric)
+        if give:
+            print("used given score")
+            self.score = score 
+            self.solve = solve
+        
         if metric == "corr": 
             self.score[np.isnan(self.score)] = 0 
             self.solve = solvecorr 
@@ -156,8 +178,12 @@ class BayesianNetwork():
             if i in self.positions:
                 subset.append(i) 
         subset.sort() 
-
-        pro = np.zeros((len(subset),2)) 
+        pro = np.zeros((len(subset),2))
+        if len(subset)==0:
+            pro = np.zeros((1,2))
+            pro[0] = 1.0
+            return BayesianNetworkResult(seq, pro, subset, base, values, bias)
+         
 
         pro[0][1] = values[subset[0]-bias] 
         pro[0][0] = pro[0][1] 
@@ -180,10 +206,44 @@ class BayesianNetwork():
 
 if __name__ == "__main__":
     # print(solvecorr(0.5, 0.5, 0.9, 0.9))
-    # a = BayesianNetwork("../proportion3/YE1-FNLS-CGBE.pkl", [11,12,13,14,15,16,17,18,19,20])
-    a = BayesianNetwork("../proportion3/BE4max.pkl", [11,12,13,14,15,16,17,18,19,20], metric="cross")
-    e = a.fit([13,14,16,17],[1,1,1,0.5,0.6,0.3,0.5,0.2],"CCCCCCCCCCCCCCCTCCCCCCCCCCCCCC","G", 10)
+
+    a = BayesianNetwork("../proportion3/YE1-FNLS-BE3.pkl", 
+    [11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29])
+    np.save("score.npy", a.score)
+    exit()
+    with open("./YE1-FNLS-BE3/bayesianNetwork.pkl", "rb") as f:
+        b = pickle.load(f)
+        #pickle.dump(a, f)
+    exit()
+    import matplotlib.pyplot as plt
+
+    import seaborn as sns 
+
+    names = os.listdir("../proportion3/")
+    for i in names:
+        print(i)
+        filename = "../proportion3/"+i
+        a = BayesianNetwork(filename, [11,12,13,14,15,16,17,18,19,20], metric="cross")
+    
+
+        name = os.path.basename(filename)
+        sns.set()
+        print(a.score)
+        fig = plt.figure() 
+        np.savetxt("./heatmap/"+name[:-4]+".txt", a.score)
+        np.savetxt("./heatmap/"+name[:-4]+"_log.txt", np.log(a.score))
+        sns_plot = sns.heatmap(np.log(a.score))
+        plt.xticks(range(2, 11))
+        plt.yticks(range(2, 11))
+        plt.title(name[:-4])
+        plt.savefig("./heatmap/"+name[:-4]+".pdf")
+        plt.close()
+    exit()
+
+    e = a.fit([13,14,16,17],[1,1,1,0.5,0.6,0.3,0.5,0.2],"CCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCC","G", 10)
     e.printres()
     print(e.getdistribution(13, 18))
+    time_end=time.time()
+    print('totally cost',time_end-time_start)
     # print(e.array)
     # print(a.score)

@@ -1,3 +1,4 @@
+from models import Proportion
 import pickle
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
@@ -8,16 +9,20 @@ import torch
 mapping = {'A':0,'T':1,'G':2,'C':3}
 
 class BaseEditingDataset(Dataset):
-    def __init__(self, data, sequence, indel, allp, editBase = 'C', rawSequence = True):
+    def __init__(self, data, sequence, indel, allp, proportion, editBase = 3, rawSequence = True):
 
         super(BaseEditingDataset, self).__init__()
         data = torch.tensor(data).float()
+        proportion = torch.tensor(proportion).float()
         self.data = data
         self.allp = allp
         #log.debug("building base editing dataset with dimensions: " + str(data.shape))
         
         assert(data.shape[1] == 40)
         assert(data.shape[0] == len(sequence))
+
+        assert(data.shape[0] == proportion.shape[0]) 
+        assert(proportion.shape[1] == 256)
         
         #print('data_dim', self.data.shape)
         
@@ -31,6 +36,8 @@ class BaseEditingDataset(Dataset):
             sequences = sequence
 
         self.indel = indel
+
+        self.proportion = proportion
 
         self.sequence = np.array(sequences).astype(np.int)
         
@@ -51,8 +58,9 @@ class BaseEditingDataset(Dataset):
         data = self.data[index]
         indel = self.indel[index]
         allp = self.allp[index][0]
+        proportion = self.proportion[index]
 
-        return seq, cpos, data, indel, allp
+        return seq, cpos, data, indel, allp, proportion
 
 def SplitDataset(ds:BaseEditingDataset, sizes=None, split=None, savepath=None):
     

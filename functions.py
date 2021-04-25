@@ -9,6 +9,41 @@ import pandas as pd
 start = 10 
 length = 20
 
+mapping2 = {0:'A',1:'T',2:'G',3:'C'}
+def getkl(model, dsTest, bN, base1="C", base2="G"):
+    ret = 0 
+    kl = nn.KLDivLoss(reduction="sum")
+    model = model.eval().cpu()
+    with torch.no_grad(): 
+        for _, j in enumerate(dsTest):
+            seq, mask, target, indel, allp, proportion = j 
+            batchsize = seq.shape[0]
+            pro = proportion
+            #pro = getmargin(proportion, 12, 20, 13, 18)
+            seq = seq.long()
+            res, _ = model(seq) 
+            res = res.numpy()
+            allres = [] 
+            seq = seq.numpy()
+            for i in range(batchsize):
+                pos = []
+                for k in bN.positions:
+                    if seq[i][k] == 3:
+                        pos.append(k)
+                #print(seq[i])
+                #print(list(map(lambda x: mapping2[x], seq[i])))
+                e = bN.fit(pos, res[i], list(map(lambda x: mapping2[x], seq[i])), base2, 10)
+                #print(pos, bN.positions)
+                allres.append(e.getdistribution(12, 20))
+            allres = np.stack(allres) 
+            ret += kl(torch.tensor(allres+0.0001).log(), torch.tensor(pro)) + \
+            kl(torch.tensor(pro).log(), torch.tensor(allres+0.0001))  
+    # print(pos)
+    # print(allres) 
+    # print(pro)
+    return ret
+
+
 def test(model, dsTest, baseIndex):
     predict = []
     truth = []
@@ -23,7 +58,7 @@ def test(model, dsTest, baseIndex):
     model = model.eval().cpu()
     with torch.no_grad():
         for _, j in enumerate(dsTest):
-            seq, mask, target, indel, allp = j 
+            seq, mask, target, indel, allp, _ = j 
             seq = seq.long() 
             mask = mask.float()
             target = target.float()
@@ -52,7 +87,7 @@ def trainonce(model, ds, optimizer, criterion, device, baseIndex):
     model = model.train().to(device)
     totalloss = 0.0
     for _, j in enumerate(ds):
-        seq, mask, target, indel, allp = j 
+        seq, mask, target, indel, allp, _ = j 
         seq = seq.long().to(device)
         mask = mask.float().to(device)
         target = target.float().to(device)
@@ -115,7 +150,7 @@ def CalculateAllResults(model, dsTest, baseIndex, savepath, positions):
 
     model = model.eval().cpu()
     for _, j in enumerate(dsTest):
-        seq, mask, target, indel, _ = j 
+        seq, mask, target, indel, _, _ = j 
         seq = seq.long() 
         mask = mask.float()
         target = target.float()
@@ -166,14 +201,16 @@ def CalculateAllResults(model, dsTest, baseIndex, savepath, positions):
 
 
 def getmargin(data, start1, end1, start2, end2):
-    ret = np.zeros((2**len(end2-start2)))
-    for i in range(len(data)):
-        idx = 0 
-        for j in range(end1-start1):
-            if ((1<<j) & i) > 0:
-                if j+start1 >= start2 and j+start1<end2:
-                    idx += 1 << (j+start1-start2)
-        ret[idx] += data[i] 
+
+    ret = np.zeros((data.shape[0], 2**(end2-start2)))
+    for k in range(data.shape[0]):
+        for i in range(len(data[k])):
+            idx = 0 
+            for j in range(end1-start1):
+                if ((1<<j) & i) > 0:
+                    if j+start1 >= start2 and j+start1<end2:
+                        idx += 1 << (j+start1-start2)
+            ret[k][idx] += data[k][i] 
     return ret 
 
 def CalculateOneSeq(model, sequence):
@@ -185,6 +222,7 @@ def CalculateOneSeq(model, sequence):
     a = torch.tensor(a)
     a = a.long().unsqueeze(0)
     with torch.no_grad():
-        ret = model(a).squeeze().numpy()
-    return ret
+        ret, _ = model(a)
+        ret = ret.squeeze().numpy()
+    return ret, a.squeeze()
 

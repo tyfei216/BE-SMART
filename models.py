@@ -18,11 +18,14 @@ class BaseUnit(nn.Module):
         self.fc3 = nn.Linear(hiddenDim, 1)
 
     def forward(self, x, y):
+        batchsize = x.shape[0]
         x = self.embedding(x)
         # x = self.dropout0(x)
         x = x.transpose(-1, -2)
-        x = F.relu(self.fc1(x)).squeeze()
+        x = F.relu(self.fc1(x))
+        x = x.squeeze(-1)
         x = self.dropout1(x)
+        #print(x.shape, y.shape)
         x = torch.cat((x, y), dim=1)
         x = F.relu(self.fc2(x))
         out = self.dropout2(x)
@@ -88,13 +91,19 @@ class Encoder(nn.Module):
         self.fc3 = nn.Linear(hiddenDim, outputDim)
 
     def forward(self, x):
+        #print(x.shape)
         x = self.embedding(x)
+        #print(x.shape)
         # x = self.dropout0(x)
         x = x.transpose(-1, -2)
-        x = F.relu(self.fc1(x)).squeeze()
+        #print(x.shape)
+        x = F.relu(self.fc1(x))#.squeeze()
+        #print(x.shape)
         x = self.dropout1(x)
         x = x.view(x.shape[0], -1)
+        #print(x.shape)
         x = F.relu(self.fc2(x))
+        #print(x.shape)
         x = self.dropout2(x)
         x = torch.sigmoid(self.fc3(x))
         return x
