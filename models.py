@@ -37,10 +37,10 @@ class BaseUnit(nn.Module):
         return out.squeeze()
 
 class BaseModel(nn.Module):
-    def __init__(self, length=5, dropout=0.3, outputLatent=False):
+    def __init__(self, length=5, dropout=0.3, outputLatent=False, globalDim=16):
         super(BaseModel, self).__init__()
         self.length = length
-        single = BaseUnit(inputDim=length, dropout=dropout, outputLatent=outputLatent)
+        single = BaseUnit(inputDim=length, dropout=dropout, outputLatent=outputLatent, globalDim=globalDim)
         self.allmodels = nn.ModuleList([copy.deepcopy(single) for _ in range(20)])
 
         self.outputLatent = outputLatent
@@ -128,14 +128,14 @@ class Proportion(nn.Module):
         return x 
 
 class FullModel(nn.Module):
-    def __init__(self, lengthlist = None, dropout=0.3):
+    def __init__(self, lengthlist = None, dropout=0.3, globalDim=16):
         super(FullModel, self).__init__() 
         if lengthlist == None:
             lengthlist = [3,4,5]
 
         models = [] 
         for i in range(len(lengthlist)):
-            models.append(BaseModel(length=lengthlist[i], dropout=dropout))
+            models.append(BaseModel(length=lengthlist[i], dropout=dropout, globalDim=globalDim))
 
         self.models = nn.ModuleList(models)
 
@@ -145,8 +145,8 @@ class FullModel(nn.Module):
         weights = torch.nn.Parameter(weights)
         self.register_parameter("final_weights", weights)
 
-        self.encoder = Encoder() 
-        self.decoder = Decoder(inputDim=16)
+        self.encoder = Encoder(outputDim=globalDim) 
+        self.decoder = Decoder(inputDim=globalDim)
 
     def forward(self, x):
 

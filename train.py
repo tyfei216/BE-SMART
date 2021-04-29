@@ -64,7 +64,7 @@ def Args():
         os.makedirs(args.log)
     logname = log.init_logs(args.log) 
     if args.evalpositions == None:
-        args.evalpositions = [2,3,4,5,6,7,8,9]
+        args.evalpositions = [3,4,5,6,7]
     if args.models == None:
         args.models = [3,3,3,4,4,4,5,5,5] 
 
@@ -125,7 +125,7 @@ def GetDataset(args, path, path2=None):
 
     log.info("length of the dataset "+str(len(data["indel"])))
 
-    dsTrain, dsValid, dsTest, indices = dataset.SplitDataset(ds, split=indices, savepath=args.splitSave, sizes = [8, 1, 1])
+    dsTrain, dsValid, dsTest, indices = dataset.SplitDataset(ds, split=indices, savepath=args.splitSave, sizes = [6, 1, 3])
     log.info("finish dataset construction")
 
     log.info("initializing BayesianNetwork")
@@ -154,7 +154,7 @@ def main():
         pickle.dump(bN, f)
 
     log.info("build model")
-    model = models.FullModel(lengthlist=args.models, dropout=args.dropout)
+    model = models.FullModel(lengthlist=args.models, dropout=args.dropout, globalDim=32)
     optim = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     
     bestval = -2.0

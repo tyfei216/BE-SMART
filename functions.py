@@ -65,6 +65,10 @@ def test(model, dsTest, baseIndex):
             indel = indel.float()
             out, _ = model(seq.long())
 
+            #print(seq)
+
+            print(mask)
+
             target = target.numpy()
             out = out.numpy()
             #indelpre = indelpre.numpy()
@@ -79,6 +83,8 @@ def test(model, dsTest, baseIndex):
                         truth[m].append(target[l][m+start][baseIndex])
                         #total.append(out[l][m])
                         #totalres.append(target[l][m+10][base])
+    
+    #print(predict, truth)
 
     return predict, truth#, indelpredict, indeltruth
 

@@ -6,6 +6,7 @@ import math
 import log
 import pickle
 import time
+import os
 def countfrequency(data, positions, indices=None, metric="cross"):
     length = len(positions)  
     # pseudo counts
@@ -206,10 +207,13 @@ class BayesianNetwork():
 
 if __name__ == "__main__":
     # print(solvecorr(0.5, 0.5, 0.9, 0.9))
-
-    a = BayesianNetwork("../proportion3/YE1-FNLS-BE3.pkl", 
-    [11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29])
-    np.save("score.npy", a.score)
+    l = os.listdir("../proportion3")
+    for i in l:
+        print(i)
+        a = BayesianNetwork("../proportion3/"+i, 
+        [11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29])
+        os.mkdir("./trainedmodels/"+i[:-4])
+        np.save("./trainedmodels/"+i[:-4]+"/score.npy", a.score)
     exit()
     with open("./YE1-FNLS-BE3/bayesianNetwork.pkl", "rb") as f:
         b = pickle.load(f)

@@ -35,6 +35,8 @@ class BaseEditingDataset(Dataset):
         else:
             sequences = sequence
 
+        #print(sequences)
+
         self.indel = indel
 
         self.proportion = proportion
@@ -45,7 +47,7 @@ class BaseEditingDataset(Dataset):
         self.Cpos = np.zeros((self.data.shape[0], 40))
         for i in range(len(self.data)):
             for j in range(10,30):
-                if sequence[i][j] == editBase:
+                if sequences[i][j] == editBase:
                     self.Cpos[i][j] = 1.0
 
     def __len__(self):
