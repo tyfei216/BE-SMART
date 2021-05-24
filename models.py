@@ -68,6 +68,8 @@ class BaseModel(nn.Module):
 
         return res
 
+# output indel proportion
+# not used 
 class Decoder(nn.Module):
     def __init__(self, inputDim=16):
         super(Decoder, self).__init__()
@@ -108,6 +110,7 @@ class Encoder(nn.Module):
         x = torch.sigmoid(self.fc3(x))
         return x
 
+#not used
 class Proportion(nn.Module):
     
     def __init__(self, inputDim = 128*9, hiddenDim = 512, dropout=0.3):

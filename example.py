@@ -8,7 +8,7 @@ import models
 import torch
 import functions
 
-mapping = {0:"A", 1:"T", 2:"G", 3:"C"}
+mapping = {'A':0,'T':1,'G':2,'C':3}
 
 def Args():
     parser = argparse.ArgumentParser()
@@ -52,7 +52,13 @@ def main():
             windowEnd = windowStart 
         if windowEnd > 20:
             windowEnd = 20
+    args.seq = args.seq.upper()
+    for c in args.seq:
+        if c not in mapping:
+            return ["invalid input", "contain unrecognized base " + str(c)] 
 
+    if args.seq[31] != "G" or args.seq[32] != "G":
+        return ["invalid input", "invalid PAM sequence, should be NGG"]
 
     model = torch.load(os.path.join(args.model, "model.pth"))
     
@@ -71,4 +77,4 @@ def main():
     
 
 if __name__ == "__main__":
-    main()
+    print(main())

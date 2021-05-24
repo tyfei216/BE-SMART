@@ -67,7 +67,7 @@ def test(model, dsTest, baseIndex):
 
             #print(seq)
 
-            print(mask)
+            #print(mask)
 
             target = target.numpy()
             out = out.numpy()

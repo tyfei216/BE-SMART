@@ -7,13 +7,14 @@ import log
 import pickle
 import time
 import os
+
 def countfrequency(data, positions, indices=None, metric="cross"):
     length = len(positions)  
     # pseudo counts
-    pos0 = np.ones((length, length))
-    pos1 = np.ones((length, length))
-    neg0 = np.ones((length, length))
-    neg1 = np.ones((length, length))
+    pos0 = np.zeros((length, length))+0.0000000001
+    pos1 = np.zeros((length, length))+0.0000000001
+    neg0 = np.zeros((length, length))+0.0000000001
+    neg1 = np.zeros((length, length))+0.0000000001
     cnts = data["cnts"]
     indel = data["indel"]
     allp = data["allp"]
@@ -52,7 +53,7 @@ def countfrequency(data, positions, indices=None, metric="cross"):
     if metric == "corr":
         return corr 
     elif metric == "cross":
-        return pos1*pos0/(neg0*neg1)
+        return pos1*pos0/(neg0*neg1), (pos0, pos1, neg0, neg1)
     else: 
         raise NotImplementedError
 
@@ -147,18 +148,18 @@ def solve(a, b, c, d):
 
 class BayesianNetwork():
     def __init__(self, path=None, positions=None, indices=None, score=None, give = False,metric="cross") -> None:
-        if positions != None:
+        if positions is not None:
             self.positions = positions
         else:
             self.positions = list(range(11, 30))
         #self.pos, self.neg = countfrequency(data, positions)
         if not give:
-            if path == None:
+            if path is None:
                 print("path not given")
                 exit()
             with open(path, "rb") as f:
                 data = pickle.load(f)
-            self.score = countfrequency(data, positions, indices=indices, metric=metric)
+            self.score, self.raw = countfrequency(data, positions, indices=indices, metric=metric)
         if give:
             print("used given score")
             self.score = score 
@@ -207,40 +208,49 @@ class BayesianNetwork():
 
 if __name__ == "__main__":
     # print(solvecorr(0.5, 0.5, 0.9, 0.9))
-    l = os.listdir("../proportion3")
-    for i in l:
-        print(i)
-        a = BayesianNetwork("../proportion3/"+i, 
-        [11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29])
-        os.mkdir("./trainedmodels/"+i[:-4])
-        np.save("./trainedmodels/"+i[:-4]+"/score.npy", a.score)
-    exit()
-    with open("./YE1-FNLS-BE3/bayesianNetwork.pkl", "rb") as f:
-        b = pickle.load(f)
+    # l = os.listdir("../proportion3")
+    # for i in l:
+    #     print(i)
+    #     a = BayesianNetwork("../proportion3/"+i, 
+    #     [11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29])
+    #     os.mkdir("./trainedmodels/"+i[:-4])
+    #     np.save("./trainedmodels/"+i[:-4]+"/score.npy", a.score)
+    # exit()
+    
+    mask = np.zeros((19,19),dtype=np.bool)
+    for i in range(19):
+        for j in range(i, 19):
+            mask[i][j] = True 
+
+    # with open("./YE1-FNLS-BE3/bayesianNetwork.pkl", "rb") as f:
+    #     b = pickle.load(f)
         #pickle.dump(a, f)
-    exit()
+    # exit()
     import matplotlib.pyplot as plt
 
     import seaborn as sns 
 
     names = os.listdir("../proportion3/")
+
     for i in names:
         print(i)
-        filename = "../proportion3/"+i
-        a = BayesianNetwork(filename, [11,12,13,14,15,16,17,18,19,20], metric="cross")
-    
-
-        name = os.path.basename(filename)
+        #filename = "./trainedmodels/"+i[:-4]+"/score.npy"
+        #a = BayesianNetwork("../proportion3/"+i, [11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29], metric="cross")
+        #a = np.load(filename)
+        
+        #name = os.path.basename(filename)
         sns.set()
         print(a.score)
         fig = plt.figure() 
-        np.savetxt("./heatmap/"+name[:-4]+".txt", a.score)
-        np.savetxt("./heatmap/"+name[:-4]+"_log.txt", np.log(a.score))
-        sns_plot = sns.heatmap(np.log(a.score))
-        plt.xticks(range(2, 11))
-        plt.yticks(range(2, 11))
-        plt.title(name[:-4])
-        plt.savefig("./heatmap/"+name[:-4]+".pdf")
+        #print(a.shape, mask.shape)
+        np.save("./trainedmodels/"+i[:-4]+"/score.npy", a.score)
+        np.savetxt("./heatmap20/"+i[:-4]+".txt", a.score)
+        np.savetxt("./heatmap20/"+i[:-4]+"_log.txt", np.log(a.score))
+        with open("./heatmap20/raw/"+i, "wb") as f:
+            pickle.dump(a.raw, f)
+        sns_plot = sns.heatmap(np.log(a.score), mask=mask, vmax=4, vmin=-4,xticklabels=range(2,21),yticklabels=range(2,21))
+        plt.title(i[:-4])
+        plt.savefig("./heatmap20/"+i[:-4]+".pdf")
         plt.close()
     exit()
 
