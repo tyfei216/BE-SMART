@@ -160,6 +160,7 @@ class BayesianNetwork():
             with open(path, "rb") as f:
                 data = pickle.load(f)
             self.score, self.raw = countfrequency(data, positions, indices=indices, metric=metric)
+        
         if give:
             print("used given score")
             self.score = score 

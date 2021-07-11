@@ -188,7 +188,7 @@ def main():
         res1, res2 = functions.eval(pre, tru, args.evalpositions)
         #indelpearson = functions.CalculatePearson(indelpre, indeltruth)
 
-        log.info("kldiv  "+ str(functions.getkl(model, dsTest, bN)))
+        #log.info("kldiv  "+ str(functions.getkl(model, dsTest, bN)))
 
         log.info("validation results: pearson "+str(res1)+" RMSE "+str(res2))
         #log.info("validation indel results "+str(indelpearson))
