@@ -110,17 +110,20 @@ def Args():
 def GetDataset(args, path, path2=None):
     
     log.info("reading dataset " + path)
+    
     with open(path, "rb") as f:
         data = pickle.load(f)
+    
+    indel = np.array(data['indel'], dtype=np.float)/np.array(data['cnts'], dtype=np.float)
     
     if path2 != None:
         log.info("using split file " + path2)
         with open(path2, "rb") as f:
             indices = pickle.load(f)
+        assert (len(indel) == len(indices))
     else:
         indices = None
     
-    indel = np.array(data['indel'], dtype=np.float)/np.array(data['cnts'], dtype=np.float)
     ds = dataset.BaseEditingDataset(data['mapping'], data['seq'], indel, data['allp'], data['proportion'], editBase = 3, rawSequence=False)
 
     log.info("length of the dataset "+str(len(data["indel"])))
@@ -128,30 +131,31 @@ def GetDataset(args, path, path2=None):
     dsTrain, dsValid, dsTest, indices = dataset.SplitDataset(ds, split=indices, savepath=args.splitSave, sizes = [6, 1, 3])
     log.info("finish dataset construction")
 
-    log.info("initializing BayesianNetwork")
-    if "score" not in data.keys():
-        bN = bayesianNetwork.BayesianNetwork(path, [12,13,14,15,16,17,18,19,20], indices=indices[:7*len(indices)//10])
-        data["score"] = bN.score 
-        with open(path, "wb") as f:
-            pickle.dump(data, f) 
-    else:
-        score = data["score"] 
-        bN = bayesianNetwork.BayesianNetwork(path, [12,13,14,15,16,17,18,19,20], score=score, indices=indices[:7*len(indices)//10])
-    log.info("finish BayesianNetwork initialization")
+    # log.info("initializing BayesianNetwork")
+    # if "score" not in data.keys():
+    #     bN = bayesianNetwork.BayesianNetwork(path, [12,13,14,15,16,17,18,19,20], indices=indices[:7*len(indices)//10])
+    #     data["score"] = bN.score 
+    #     with open(path, "wb") as f:
+    #         pickle.dump(data, f) 
+    # else:
+    #     score = data["score"] 
+    #     bN = bayesianNetwork.BayesianNetwork(path, [12,13,14,15,16,17,18,19,20], score=score, indices=indices[:7*len(indices)//10])
+    # log.info("finish BayesianNetwork initialization")
 
 
 
-    return dsTrain, dsValid, dsTest, bN
+    return dsTrain, dsValid, dsTest#, bN
 
 def main():
     args = Args()
-    dsTrain, dsValid, dsTest, bN = GetDataset(args, args.ds, path2=args.split)
+    # dsTrain, dsValid, dsTest, bN = GetDataset(args, args.ds, path2=args.split)
+    dsTrain, dsValid, dsTest = GetDataset(args, args.ds, path2=args.split)
     log.info("length of all datasets: dstrain "+str(len(dsTrain))+" dsTest "+str(len(dsTest))+" dsValid "+str(len(dsValid)))
 
 
-    log.info("saving bayesianNetwork")
-    with open(os.path.join(args.checkpoints, "bayesianNetwork.pkl"), "wb") as f:
-        pickle.dump(bN, f)
+    # log.info("saving bayesianNetwork")
+    # with open(os.path.join(args.checkpoints, "bayesianNetwork.pkl"), "wb") as f:
+    #     pickle.dump(bN, f)
 
     log.info("build model")
     model = models.FullModel(lengthlist=args.models, dropout=args.dropout, globalDim=32)
@@ -163,7 +167,7 @@ def main():
     cri = nn.MSELoss()
     checkpoint_path = os.path.join(args.checkpoints, '{epoch}-{net}.pth')
     log.info("start training\n-------------------")
-    log.info(str(functions.getkl(model, dsTest, bN)))
+    #log.info(str(functions.getkl(model, dsTest, bN)))
     for i in range(args.epoch):
         totalLoss = functions.trainonce(model, dsTrain, optim, cri, device, args.baseIndex)
         log.info("epoch " + str(i)+": Total Loss: "+str(totalLoss))

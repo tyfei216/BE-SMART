@@ -59,7 +59,7 @@ class BaseEditingDataset(Dataset):
         cpos = self.Cpos[index]
         data = self.data[index]
         indel = self.indel[index]
-        allp = self.allp[index][0]
+        allp = 0#self.allp[index][0]
         proportion = self.proportion[index]
 
         return seq, cpos, data, indel, allp, proportion
