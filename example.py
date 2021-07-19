@@ -34,7 +34,7 @@ def main():
     #     bN = pickle.load(f)
 
     score = np.load(os.path.join(args.model, "score.npy"))
-    bN = BayesianNetwork(score=score, give=True)
+    bN = BayesianNetwork(score)
     #print(bN.positions)
     predictBase = config.getint("meta", "predictbase") 
     editBase = config.getint("meta", "editbase")  

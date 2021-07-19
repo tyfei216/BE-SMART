@@ -8,54 +8,54 @@ import pickle
 import time
 import os
 
-def countfrequency(data, positions, indices=None, metric="cross"):
-    length = len(positions)  
-    # pseudo counts
-    pos0 = np.zeros((length, length))+0.0000000001
-    pos1 = np.zeros((length, length))+0.0000000001
-    neg0 = np.zeros((length, length))+0.0000000001
-    neg1 = np.zeros((length, length))+0.0000000001
-    cnts = data["cnts"]
-    indel = data["indel"]
-    allp = data["allp"]
-    cpos = data["cpos"]
-    if indices == None:
-        indices = range(len(cnts))
+# def countfrequency(data, positions, indices=None, metric="cross"):
+#     length = len(positions)  
+#     # pseudo counts
+#     pos0 = np.zeros((length, length))+0.0000000001
+#     pos1 = np.zeros((length, length))+0.0000000001
+#     neg0 = np.zeros((length, length))+0.0000000001
+#     neg1 = np.zeros((length, length))+0.0000000001
+#     cnts = data["cnts"]
+#     indel = data["indel"]
+#     allp = data["allp"]
+#     cpos = data["cpos"]
+#     if indices == None:
+#         indices = range(len(cnts))
 
-    for i in indices:
-        totalcnts = cnts[i] * (1-indel[i])+1 
-        subset = [] 
-        for j in cpos[i]:
-            if j in positions:
-                subset.append(j) 
-        if len(subset) < 2:
-            continue 
-        for j in range(0, len(allp[i])): 
-            for k in range(len(subset)-1):
-                for l in range(k+1, len(subset)):
-                    if (j & (1<<(cpos[i].index(subset[k])))>0) ^ (j & (1<<(cpos[i].index(subset[l])))>0):
-                        if j & (1<<(cpos[i].index(subset[k])))>0:
-                            neg0[positions.index(subset[k])][positions.index(subset[l])] += totalcnts*allp[i][j]
-                            neg0[positions.index(subset[l])][positions.index(subset[k])] = neg0[positions.index(subset[k])][positions.index(subset[l])]
-                        else:
-                            neg1[positions.index(subset[k])][positions.index(subset[l])] += totalcnts*allp[i][j]
-                            neg1[positions.index(subset[l])][positions.index(subset[k])] = neg1[positions.index(subset[k])][positions.index(subset[l])]
-                    else:
-                        if j & (1<<(cpos[i].index(subset[k])))>0:
-                            pos0[positions.index(subset[k])][positions.index(subset[l])] += totalcnts*allp[i][j]
-                            pos0[positions.index(subset[l])][positions.index(subset[k])] = pos0[positions.index(subset[k])][positions.index(subset[l])]
-                        else:
-                            pos1[positions.index(subset[k])][positions.index(subset[l])] += totalcnts*allp[i][j]
-                            pos1[positions.index(subset[l])][positions.index(subset[k])] = pos1[positions.index(subset[k])][positions.index(subset[l])]
+#     for i in indices:
+#         totalcnts = cnts[i] * (1-indel[i])+1 
+#         subset = [] 
+#         for j in cpos[i]:
+#             if j in positions:
+#                 subset.append(j) 
+#         if len(subset) < 2:
+#             continue 
+#         for j in range(0, len(allp[i])): 
+#             for k in range(len(subset)-1):
+#                 for l in range(k+1, len(subset)):
+#                     if (j & (1<<(cpos[i].index(subset[k])))>0) ^ (j & (1<<(cpos[i].index(subset[l])))>0):
+#                         if j & (1<<(cpos[i].index(subset[k])))>0:
+#                             neg0[positions.index(subset[k])][positions.index(subset[l])] += totalcnts*allp[i][j]
+#                             neg0[positions.index(subset[l])][positions.index(subset[k])] = neg0[positions.index(subset[k])][positions.index(subset[l])]
+#                         else:
+#                             neg1[positions.index(subset[k])][positions.index(subset[l])] += totalcnts*allp[i][j]
+#                             neg1[positions.index(subset[l])][positions.index(subset[k])] = neg1[positions.index(subset[k])][positions.index(subset[l])]
+#                     else:
+#                         if j & (1<<(cpos[i].index(subset[k])))>0:
+#                             pos0[positions.index(subset[k])][positions.index(subset[l])] += totalcnts*allp[i][j]
+#                             pos0[positions.index(subset[l])][positions.index(subset[k])] = pos0[positions.index(subset[k])][positions.index(subset[l])]
+#                         else:
+#                             pos1[positions.index(subset[k])][positions.index(subset[l])] += totalcnts*allp[i][j]
+#                             pos1[positions.index(subset[l])][positions.index(subset[k])] = pos1[positions.index(subset[k])][positions.index(subset[l])]
 
-    s = pos0+pos1+neg0+neg1
-    corr = (pos0*s-(neg0+pos0)*(neg1+pos0))/np.sqrt((neg1+pos0)*(neg1+pos1)*(neg0+pos1)*(neg0+pos0)) 
-    if metric == "corr":
-        return corr 
-    elif metric == "cross":
-        return pos1*pos0/(neg0*neg1), (pos0, pos1, neg0, neg1)
-    else: 
-        raise NotImplementedError
+#     s = pos0+pos1+neg0+neg1
+#     corr = (pos0*s-(neg0+pos0)*(neg1+pos0))/np.sqrt((neg1+pos0)*(neg1+pos1)*(neg0+pos1)*(neg0+pos0)) 
+#     if metric == "corr":
+#         return corr 
+#     elif metric == "cross":
+#         return pos1*pos0/(neg0*neg1), (pos0, pos1, neg0, neg1)
+#     else: 
+#         raise NotImplementedError
 
 class BayesianNetworkResult():
     def __init__(self, seq, probability, cpos, base, allvalues, bias=0, z=None) -> None:
@@ -147,24 +147,16 @@ def solve(a, b, c, d):
     return x, y 
 
 class BayesianNetwork():
-    def __init__(self, path=None, positions=None, indices=None, score=None, give = False,metric="cross") -> None:
+    def __init__(self, score, positions=None, metric="cross") -> None:
         if positions is not None:
             self.positions = positions
         else:
             self.positions = list(range(11, 30))
         #self.pos, self.neg = countfrequency(data, positions)
-        if not give:
-            if path is None:
-                print("path not given")
-                exit()
-            with open(path, "rb") as f:
-                data = pickle.load(f)
-            self.score, self.raw = countfrequency(data, positions, indices=indices, metric=metric)
+                
         
-        if give:
-            print("used given score")
-            self.score = score 
-            self.solve = solve
+        self.score = score 
+        # self.solve = solve
         
         if metric == "corr": 
             self.score[np.isnan(self.score)] = 0 
@@ -208,57 +200,61 @@ class BayesianNetwork():
         raise NotImplementedError
 
 if __name__ == "__main__":
-    # print(solvecorr(0.5, 0.5, 0.9, 0.9))
-    # l = os.listdir("../proportion3")
-    # for i in l:
+    # # print(solvecorr(0.5, 0.5, 0.9, 0.9))
+    # # l = os.listdir("../proportion3")
+    # # for i in l:
+    # #     print(i)
+    # #     a = BayesianNetwork("../proportion3/"+i, 
+    # #     [11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29])
+    # #     os.mkdir("./trainedmodels/"+i[:-4])
+    # #     np.save("./trainedmodels/"+i[:-4]+"/score.npy", a.score)
+    # # exit()
+    t = np.load("./YE1-FNLS-BE3/score.npy")
+    a = BayesianNetwork(t)
+    bn = a.fit([13,14,15], [0.4]*20, "AAAAAAAAAACCCCCCCCCCCCCCCCCCCCCCCCCCCCCC", "T", 10)
+    print(bn.res)
+    # mask = np.zeros((19,19),dtype=np.bool)
+    # for i in range(19):
+    #     for j in range(i, 19):
+    #         mask[i][j] = True 
+
+    # # with open("./YE1-FNLS-BE3/bayesianNetwork.pkl", "rb") as f:
+    # #     b = pickle.load(f)
+    #     #pickle.dump(a, f)
+    # # exit()
+    # import matplotlib.pyplot as plt
+
+    # import seaborn as sns 
+
+    # names = os.listdir("../proportion3/")
+
+    # for i in names:
     #     print(i)
-    #     a = BayesianNetwork("../proportion3/"+i, 
-    #     [11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29])
-    #     os.mkdir("./trainedmodels/"+i[:-4])
-    #     np.save("./trainedmodels/"+i[:-4]+"/score.npy", a.score)
-    # exit()
-    
-    mask = np.zeros((19,19),dtype=np.bool)
-    for i in range(19):
-        for j in range(i, 19):
-            mask[i][j] = True 
-
-    # with open("./YE1-FNLS-BE3/bayesianNetwork.pkl", "rb") as f:
-    #     b = pickle.load(f)
-        #pickle.dump(a, f)
-    # exit()
-    import matplotlib.pyplot as plt
-
-    import seaborn as sns 
-
-    names = os.listdir("../proportion3/")
-
-    for i in names:
-        print(i)
-        #filename = "./trainedmodels/"+i[:-4]+"/score.npy"
-        #a = BayesianNetwork("../proportion3/"+i, [11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29], metric="cross")
-        #a = np.load(filename)
+    #     #filename = "./trainedmodels/"+i[:-4]+"/score.npy"
+    #     #a = BayesianNetwork("../proportion3/"+i, [11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29], metric="cross")
+    #     #a = np.load(filename)
         
-        #name = os.path.basename(filename)
-        sns.set()
-        print(a.score)
-        fig = plt.figure() 
-        #print(a.shape, mask.shape)
-        np.save("./trainedmodels/"+i[:-4]+"/score.npy", a.score)
-        np.savetxt("./heatmap20/"+i[:-4]+".txt", a.score)
-        np.savetxt("./heatmap20/"+i[:-4]+"_log.txt", np.log(a.score))
-        with open("./heatmap20/raw/"+i, "wb") as f:
-            pickle.dump(a.raw, f)
-        sns_plot = sns.heatmap(np.log(a.score), mask=mask, vmax=4, vmin=-4,xticklabels=range(2,21),yticklabels=range(2,21))
-        plt.title(i[:-4])
-        plt.savefig("./heatmap20/"+i[:-4]+".pdf")
-        plt.close()
-    exit()
+    #     #name = os.path.basename(filename)
+    #     sns.set()
+    #     print(a.score)
+    #     fig = plt.figure() 
+    #     #print(a.shape, mask.shape)
+    #     np.save("./trainedmodels/"+i[:-4]+"/score.npy", a.score)
+    #     np.savetxt("./heatmap20/"+i[:-4]+".txt", a.score)
+    #     np.savetxt("./heatmap20/"+i[:-4]+"_log.txt", np.log(a.score))
+    #     with open("./heatmap20/raw/"+i, "wb") as f:
+    #         pickle.dump(a.raw, f)
+    #     sns_plot = sns.heatmap(np.log(a.score), mask=mask, vmax=4, vmin=-4,xticklabels=range(2,21),yticklabels=range(2,21))
+    #     plt.title(i[:-4])
+    #     plt.savefig("./heatmap20/"+i[:-4]+".pdf")
+    #     plt.close()
+    # exit()
 
-    e = a.fit([13,14,16,17],[1,1,1,0.5,0.6,0.3,0.5,0.2],"CCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCC","G", 10)
-    e.printres()
-    print(e.getdistribution(13, 18))
-    time_end=time.time()
-    print('totally cost',time_end-time_start)
+    # e = a.fit([13,14,16,17],[1,1,1,0.5,0.6,0.3,0.5,0.2],"CCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCC","G", 10)
+    # e.printres()
+    # print(e.getdistribution(13, 18))
+    # time_end=time.time()
+    # print('totally cost',time_end-time_start)
     # print(e.array)
     # print(a.score)
+    pass

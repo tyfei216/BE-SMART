@@ -5,41 +5,42 @@ from torch.utils.data import Dataset, DataLoader
 import random
 import log
 import torch
-
+import os
 mapping = {'A':0,'T':1,'G':2,'C':3}
 
 class BaseEditingDataset(Dataset):
-    def __init__(self, data, sequence, indel, allp, proportion, editBase = 3, rawSequence = True):
+    def __init__(self, data, sequence, editBase = 3, rawSequence = True):
 
         super(BaseEditingDataset, self).__init__()
         data = torch.tensor(data).float()
-        proportion = torch.tensor(proportion).float()
+        
         self.data = data
-        self.allp = allp
+        
         #log.debug("building base editing dataset with dimensions: " + str(data.shape))
         
         assert(data.shape[1] == 40)
         assert(data.shape[0] == len(sequence))
 
-        assert(data.shape[0] == proportion.shape[0]) 
-        assert(proportion.shape[1] == 256)
         
         #print('data_dim', self.data.shape)
         
         if rawSequence:
             #log.debug("encoding sequencing")
             sequences = []
-            for i in range(len(sequence)):
-                assert(len(sequence[i]) == 40)
-                sequences.append(np.array(list(map(lambda x: mapping[x], sequence[i]))))
+            for i in sequence:
+                assert(len(i) == 40)
+                if i[31] != "G" or i[32] != "G":
+                    log.error("contain invalid PAM sequence ", i, )
+                    exit()
+                for j in i:
+                    if j not in mapping:
+                        log.error("contain invalid base ", i)
+                        exit()
+                sequences.append(np.array(list([mapping[x] for x in i])))
         else:
             sequences = sequence
 
         #print(sequences)
-
-        self.indel = indel
-
-        self.proportion = proportion
 
         self.sequence = np.array(sequences).astype(np.int)
         
@@ -58,12 +59,27 @@ class BaseEditingDataset(Dataset):
         seq = self.sequence[index]
         cpos = self.Cpos[index]
         data = self.data[index]
-        indel = self.indel[index]
-        allp = 0#self.allp[index][0]
-        proportion = self.proportion[index]
 
-        return seq, cpos, data, indel, allp, proportion
+        return seq, cpos, data
 
+# you may want to overwrite this function to load your data 
+def loadDataset(path:str):
+    seq = os.path.join(path, "seq.txt")
+    log.info("reading sequence info in "+ seq)
+    seqs = []
+    with open(seq, "r") as f:
+        for i in f.readlines():
+            i = i.strip()
+            i = i.upper()
+            assert(len(i) == 40)
+            seqs.append(i)
+    
+    outcome = os.path.join(path, "outcome.npy")
+    log.info("reading sequence info in "+ outcome)
+    data = np.load(outcome)
+
+    return seqs, data
+    
 def SplitDataset(ds:BaseEditingDataset, sizes=None, split=None, savepath=None):
     
     if sizes == None:

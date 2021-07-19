@@ -10,38 +10,38 @@ start = 10
 length = 20
 
 mapping2 = {0:'A',1:'T',2:'G',3:'C'}
-def getkl(model, dsTest, bN, base1="C", base2="G"):
-    ret = 0 
-    kl = nn.KLDivLoss(reduction="sum")
-    model = model.eval().cpu()
-    with torch.no_grad(): 
-        for _, j in enumerate(dsTest):
-            seq, mask, target, indel, allp, proportion = j 
-            batchsize = seq.shape[0]
-            pro = proportion
-            #pro = getmargin(proportion, 12, 20, 13, 18)
-            seq = seq.long()
-            res, _ = model(seq) 
-            res = res.numpy()
-            allres = [] 
-            seq = seq.numpy()
-            for i in range(batchsize):
-                pos = []
-                for k in bN.positions:
-                    if seq[i][k] == 3:
-                        pos.append(k)
-                #print(seq[i])
-                #print(list(map(lambda x: mapping2[x], seq[i])))
-                e = bN.fit(pos, res[i], list(map(lambda x: mapping2[x], seq[i])), base2, 10)
-                #print(pos, bN.positions)
-                allres.append(e.getdistribution(12, 20))
-            allres = np.stack(allres) 
-            ret += kl(torch.tensor(allres+0.0001).log(), torch.tensor(pro)) + \
-            kl(torch.tensor(pro).log(), torch.tensor(allres+0.0001))  
-    # print(pos)
-    # print(allres) 
-    # print(pro)
-    return ret
+# def getkl(model, dsTest, bN, base1="C", base2="G"):
+#     ret = 0 
+#     kl = nn.KLDivLoss(reduction="sum")
+#     model = model.eval().cpu()
+#     with torch.no_grad(): 
+#         for _, j in enumerate(dsTest):
+#             seq, mask, target, indel, allp, proportion = j 
+#             batchsize = seq.shape[0]
+#             pro = proportion
+#             #pro = getmargin(proportion, 12, 20, 13, 18)
+#             seq = seq.long()
+#             res, _ = model(seq) 
+#             res = res.numpy()
+#             allres = [] 
+#             seq = seq.numpy()
+#             for i in range(batchsize):
+#                 pos = []
+#                 for k in bN.positions:
+#                     if seq[i][k] == 3:
+#                         pos.append(k)
+#                 #print(seq[i])
+#                 #print(list(map(lambda x: mapping2[x], seq[i])))
+#                 e = bN.fit(pos, res[i], list(map(lambda x: mapping2[x], seq[i])), base2, 10)
+#                 #print(pos, bN.positions)
+#                 allres.append(e.getdistribution(12, 20))
+#             allres = np.stack(allres) 
+#             ret += kl(torch.tensor(allres+0.0001).log(), torch.tensor(pro)) + \
+#             kl(torch.tensor(pro).log(), torch.tensor(allres+0.0001))  
+#     # print(pos)
+#     # print(allres) 
+#     # print(pro)
+#     return ret
 
 
 def test(model, dsTest, baseIndex):
@@ -58,11 +58,10 @@ def test(model, dsTest, baseIndex):
     model = model.eval().cpu()
     with torch.no_grad():
         for _, j in enumerate(dsTest):
-            seq, mask, target, indel, allp, _ = j 
+            seq, mask, target= j 
             seq = seq.long() 
             mask = mask.float()
             target = target.float()
-            indel = indel.float()
             out, _ = model(seq.long())
 
             #print(seq)
@@ -71,14 +70,11 @@ def test(model, dsTest, baseIndex):
 
             target = target.numpy()
             out = out.numpy()
-            #indelpre = indelpre.numpy()
 
             for l in range(target.shape[0]):
-                #indelpredict.append(indelpre[l])
-                indeltruth.append(indel[l])
                 for m in range(20):
                     if mask[l][m+10] > 0.5:
-                        #print("here")
+                        
                         predict[m].append(out[l][m])
                         truth[m].append(target[l][m+start][baseIndex])
                         #total.append(out[l][m])
@@ -93,14 +89,10 @@ def trainonce(model, ds, optimizer, criterion, device, baseIndex):
     model = model.train().to(device)
     totalloss = 0.0
     for _, j in enumerate(ds):
-        seq, mask, target, indel, allp, _ = j 
+        seq, mask, target= j 
         seq = seq.long().to(device)
         mask = mask.float().to(device)
         target = target.float().to(device)
-        indel = indel.float().to(device)
-        allp = allp.float().to(device)
-        allp = allp.unsqueeze(1)
-        
         out, editproportion = model(seq) 
         target = target[:, start:start+length, baseIndex]#/(1-allp) 
         
@@ -156,11 +148,11 @@ def CalculateAllResults(model, dsTest, baseIndex, savepath, positions):
 
     model = model.eval().cpu()
     for _, j in enumerate(dsTest):
-        seq, mask, target, indel, _, _ = j 
+        seq, mask, target = j 
         seq = seq.long() 
         mask = mask.float()
         target = target.float()
-        indel = indel.float()
+        
         out, _ = model(seq.long())
 
 
