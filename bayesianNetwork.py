@@ -9,14 +9,14 @@ import time
 import os
 
 class BayesianNetworkResult():
-    def __init__(self, seq, probability, cpos, base, allvalues, bias=0, z=None) -> None:
+    def __init__(self, seq, probability, cpos, base, predictValue, bias=0, z=None) -> None:
         self.base = base 
         seq = list(seq) 
         self.probability = probability 
         self.cpos = cpos 
         
         self.res = {}
-        self.allvalues = allvalues
+        self.predictValue = predictValue
         self.bias = bias
         if len(cpos) > 0:
             self.ori = seq[cpos[0]]
@@ -58,15 +58,15 @@ class BayesianNetworkResult():
         if len(subset)==0:
             ret[0] = 1.0
             return ret 
-        #print(subset, self.allvalues)
+        #print(subset, self.predictValue)
         for i in range(2**len(subset)):
             idx = 0
             if i & 1 > 0:
-                pro = self.allvalues[subset[0]-self.bias]
+                pro = self.predictValue[subset[0]-self.bias]
                 pre = 1 
                 idx += 1<<(subset[0]-start)
             else:
-                pro = 1-self.allvalues[subset[0]-self.bias]
+                pro = 1-self.predictValue[subset[0]-self.bias]
                 pre = 0 
             for j in range(1, len(subset)):
                 if i & (1<<j) > 0:
