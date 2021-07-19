@@ -34,6 +34,8 @@ For training:
 
 python train.py -ds [path-to-dataset]
 
+python train.py -ds ./datasetsample_YE1-FNLS-GBE3
+
 ```
 
 
@@ -44,21 +46,14 @@ For testing:
 
 ```powershell
 
-python test.py -model [path-to-saved-model] -seq [raw-input-sequence]
+python example.py -model [path-to-saved-model] -seq [raw-input-sequence]
 
+python example.py -model ./trainedmodels/YE1-FNLS-CGBE -seq CCGCATGCGGGCGCTCCGGGCCCATCCTGAGGGCCCGGCC
 ```
 
 
 
-or
-
-
-
-```powershell
-
-python test.py -model [path-to-saved-model] -ds [path-to-dataset]
-
-```
+The input dataset contains 3 files, `seq.txt` contains all target site sequences. `outcome.npy` is a numpy array file containing the editing results, Each target corresponds with a 40 $\times$ 4 array, referring the probability of each base being edited to A, T, G, C. `score.npy` is the scoring matrix for the Bayesian Network. This matrix is not used for the training of the model. It is only used for outputting the proportion of all outcomes. 
 
 
 
